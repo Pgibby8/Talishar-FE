@@ -15,6 +15,9 @@ export default function ChatBox() {
   const [chatFilter, setChatFilter] = useState<'none' | 'chat' | 'log'>('none');
   const [collapsed, setCollapsed] = useState(false);
   const chatLog = useAppSelector((state: RootState) => state.game.chatLog);
+  const turnPhase = useAppSelector(
+    (state: RootState) => state.game.turnPhase?.turnPhase
+  );
   const myName = String(
     useAppSelector((state: RootState) => state.game.playerOne.Name) ?? 'you'
   );
@@ -51,8 +54,9 @@ export default function ChatBox() {
     );
 
   useEffect(() => {
-    if (!collapsed) scrollToBottom();
-  }, [chatLog, chatFilter, collapsed]);
+    // Only auto-scroll if game is still in progress (turnPhase !== 'OVER') and not collapsed
+    if (!collapsed && turnPhase !== 'OVER') scrollToBottom();
+  }, [chatLog, chatFilter, collapsed, turnPhase]);
 
   return ReactDOM.createPortal(
     <div className={styles.chatBoxMobileContainer}>
