@@ -23,9 +23,6 @@ export default function ChatBox({ usePrimary = false }: { usePrimary?: boolean }
   const chatEnabled = useAppSelector(
     (state: RootState) => state.game.chatEnabled
   );
-  const turnPhase = useAppSelector(
-    (state: RootState) => state.game.turnPhase?.turnPhase
-  );
   const [chatFilter, setChatFilter] = useState<'none' | 'chat' | 'log'>('none');
   const chatLog = useAppSelector((state: RootState) => state.game.chatLog);
 
@@ -113,11 +110,8 @@ export default function ChatBox({ usePrimary = false }: { usePrimary?: boolean }
     });
 
   useEffect(() => {
-    // Only auto-scroll if game is still in progress (turnPhase !== 'OVER')
-    if (turnPhase !== 'OVER') {
-      scrollToBottom();
-    }
-  }, [chatLog, chatFilter, displayTyping, turnPhase]);
+    scrollToBottom();
+  }, [chatLog, chatFilter, displayTyping]);
 
   return (
     <div className={styles.chatBoxContainer}>
