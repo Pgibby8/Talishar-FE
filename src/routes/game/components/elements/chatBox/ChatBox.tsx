@@ -51,6 +51,8 @@ export default function ChatBox({ usePrimary = false }: { usePrimary?: boolean }
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatBoxRef = useRef<HTMLDivElement>(null);
+  const prevChatLengthRef = useRef<number>(0);
+  const prevChatFilterRef = useRef<string>('none');
 
   const scrollToBottom = () => {
     if (chatBoxRef.current) {
@@ -110,7 +112,16 @@ export default function ChatBox({ usePrimary = false }: { usePrimary?: boolean }
     });
 
   useEffect(() => {
-    scrollToBottom();
+    const currentLength = chatLog?.length ?? 0;
+    const filterChanged = chatFilter !== prevChatFilterRef.current;
+    const hasNewMessages = currentLength > prevChatLengthRef.current;
+
+    prevChatLengthRef.current = currentLength;
+    prevChatFilterRef.current = chatFilter;
+
+    if (hasNewMessages || filterChanged || displayTyping) {
+      scrollToBottom();
+    }
   }, [chatLog, chatFilter, displayTyping]);
 
   return (
