@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  createEvent,
+  fireEvent,
+  screen,
+  waitFor
+} from '@testing-library/react';
 import { CookiesProvider } from 'react-cookie';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderWithProviders } from 'utils/TestUtils';
@@ -24,21 +30,33 @@ const tapCard = (el: HTMLElement) => {
   fireEvent.click(el);
 };
 
+const hoverCardWithPointer = (el: HTMLElement, pointerType: string) => {
+  const event = createEvent.pointerOver(el);
+  Object.defineProperty(event, 'pointerType', { value: pointerType });
+  fireEvent(el, event);
+};
+
 const renderBoardCard = ({
   cookieEnabled,
   cardNumber = 'WTR076',
-  onClick
+  onClick,
+  disableTapToPreview = false
 }: {
   cookieEnabled: boolean;
   cardNumber?: string;
   onClick?: () => void;
+  disableTapToPreview?: boolean;
 }) => {
   document.cookie = `${TAP_TO_PREVIEW_PLAY_COOKIE}=${
     cookieEnabled ? 'true' : 'false'
   }; path=/`;
   return renderWithProviders(
     <CookiesProvider>
-      <CardPopUp cardNumber={cardNumber} onClick={onClick}>
+      <CardPopUp
+        cardNumber={cardNumber}
+        onClick={onClick}
+        disableTapToPreview={disableTapToPreview}
+      >
         <button type="button" data-testid="board-card" />
       </CardPopUp>
     </CookiesProvider>
@@ -60,14 +78,49 @@ describe('CardPopUp board tap to preview', () => {
     expect(getCardPreview().popupOn).not.toBe(true);
   });
 
+  it('shows a board-card preview for a hovering stylus', () => {
+    renderBoardCard({ cookieEnabled: false });
+
+    hoverCardWithPointer(screen.getByTestId('board-card'), 'pen');
+
+    expect(getCardPreview()).toMatchObject({
+      popupOn: true,
+      popupCard: { cardNumber: 'WTR076' },
+      presentation: 'floating'
+    });
+  });
+
+  it('does not show a hover preview for a touch pointer', () => {
+    renderBoardCard({ cookieEnabled: false });
+
+    hoverCardWithPointer(screen.getByTestId('board-card'), 'touch');
+
+    expect(getCardPreview().popupOn).not.toBe(true);
+  });
+
+  it('fires immediately when short-tap preview is disabled for a surface', () => {
+    const onClick = vi.fn();
+    renderBoardCard({
+      cookieEnabled: true,
+      onClick,
+      disableTapToPreview: true
+    });
+
+    tapCard(screen.getByTestId('board-card'));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(getCardPreview().popupOn).not.toBe(true);
+    expect(getTapToPreviewSelectedCardKey()).toBeNull();
+  });
+
   it('keeps a touch long-press preview open after the finger is lifted', () => {
     vi.useFakeTimers();
     const onClick = vi.fn();
     renderBoardCard({ cookieEnabled: false, onClick });
     const card = screen.getByTestId('board-card');
 
-    fireEvent.touchStart(card);
-    act(() => vi.advanceTimersByTime(400));
+    fireEvent.touchStart(card, { touches: [{ clientX: 10, clientY: 10 }] });
+    act(() => vi.advanceTimersByTime(500));
     fireEvent.touchEnd(card);
     fireEvent.click(card);
 

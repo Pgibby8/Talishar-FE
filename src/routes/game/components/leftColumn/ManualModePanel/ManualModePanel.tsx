@@ -3,10 +3,8 @@ import styles from './ManualModePanel.module.css';
 import useSetting from 'hooks/useSetting';
 import { MANUAL_MODE } from 'features/options/constants';
 import { useAppDispatch, useAppSelector } from 'app/Hooks';
-import { submitButton, getGameInfo } from 'features/game/GameSlice';
-import { updateOptions } from 'features/options/optionsSlice';
+import { submitButton } from 'features/game/GameSlice';
 import { PROCESS_INPUT } from 'appConstants';
-import { shallowEqual } from 'react-redux';
 import { AiOutlineMinus, AiOutlinePlus } from 'react-icons/ai';
 import { MdClose } from 'react-icons/md';
 import { RootState } from 'app/Store';
@@ -37,6 +35,9 @@ export default function ManualModePanel() {
   const isReplay = useAppSelector(
     (state: RootState) => state.game.gameInfo.isReplay
   );
+  const isOpponentAI = useAppSelector(
+    (state: RootState) => state.game.gameInfo.isOpponentAI ?? false
+  );
 
   useEffect(() => {
     if (isManualMode && !isMobileOrTablet) {
@@ -48,8 +49,10 @@ export default function ManualModePanel() {
     setIsOpen(isManualModeOpen);
   }, [isManualModeOpen]);
 
-  // In local environment, always show the tab. In production, hide if manual mode is off (unless against Practice Dummy)
-  if (isReplay || (!isLocalEnvironment && !isManualMode && !isPracticeDummy)) {
+  if (
+    isReplay ||
+    (!isLocalEnvironment && !isManualMode && !isPracticeDummy && !isOpponentAI)
+  ) {
     return null;
   }
 
@@ -188,7 +191,6 @@ function ManualModeContent({
   const [showCardTooltip, setShowCardTooltip] = useState(false);
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const gameInfo = useAppSelector(getGameInfo, shallowEqual);
   const playerHealth = useAppSelector(
     (state: RootState) => state.game.playerOne.Health
   );
@@ -219,21 +221,6 @@ function ManualModeContent({
     1,
     Math.min(999, Number.parseInt(drawCount, 10) || 1)
   );
-
-  const handleClose = () => {
-    dispatch(
-      updateOptions({
-        game: gameInfo,
-        settings: [
-          {
-            name: MANUAL_MODE,
-            value: '0'
-          }
-        ]
-      })
-    );
-    onClose();
-  };
 
   const handleDispatch = (mode: number) => {
     if (isRequestInProgress) return;
@@ -307,7 +294,7 @@ function ManualModeContent({
         <button
           type="button"
           className={styles.closeButton}
-          onClick={handleClose}
+          onClick={onClose}
           aria-label={`Close ${t('MANUAL_MODE_PANEL.TITLE')}`}
         >
           <MdClose aria-hidden="true" />

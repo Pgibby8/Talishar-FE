@@ -432,11 +432,9 @@ function mergeReceivedGameState(
   state.aiHasInfiniteHP = payload.aiHasInfiniteHP ?? false;
   state.practiceDummyWeaponPower = payload.practiceDummyWeaponPower ?? 4;
   state.opponentInactive = payload.opponentInactive ?? false;
-  state.inactivityDeadline =
-    payload.inactivityDeadline ?? state.inactivityDeadline;
-  state.gameDeleteDeadline =
-    payload.gameDeleteDeadline ?? state.gameDeleteDeadline;
-  state.serverTimeOffset = payload.serverTimeOffset ?? state.serverTimeOffset;
+  state.inactivityDeadline = payload.inactivityDeadline;
+  state.gameDeleteDeadline = payload.gameDeleteDeadline;
+  state.serverTimeOffset = payload.serverTimeOffset;
   state.preventPassPrompt = payload.preventPassPrompt;
 }
 
@@ -644,6 +642,13 @@ export const gameSlice = createSlice({
 
       // Check if this is a NEW game or a RECONNECTION to the same game
       const isNewGame = previousGameID !== newGameID;
+
+      if (isNewGame) {
+        state.opponentInactive = false;
+        state.inactivityDeadline = undefined;
+        state.gameDeleteDeadline = undefined;
+        state.serverTimeOffset = undefined;
+      }
 
       // Always update gameID
       state.gameInfo.gameID = newGameID;
@@ -1156,6 +1161,11 @@ const stacksTogether = (a: Card, b: Card): boolean => {
   return aCount === bCount;
 };
 
+const gemStackIDsFor = (card: Card): string[] | undefined =>
+  card.gem && card.gem !== 'none' && card.actionDataOverride !== undefined
+    ? [card.actionDataOverride]
+    : undefined;
+
 const buildPermanentsAsStack = (
   permanents: Card[] | undefined
 ): CardStack[] => {
@@ -1174,7 +1184,8 @@ const buildPermanentsAsStack = (
       result.push({
         card: currentCard,
         count: 1,
-        id: `${currentCard.cardNumber}-${idIndex++}`
+        id: `${currentCard.cardNumber}-${idIndex++}`,
+        gemStackIDs: gemStackIDsFor(currentCard)
       });
       continue;
     }
@@ -1186,6 +1197,10 @@ const buildPermanentsAsStack = (
       for (const idx of candidates) {
         if (stacksTogether(result[idx].card, currentCard)) {
           result[idx].count++;
+          const stackIDs = result[idx].gemStackIDs;
+          if (stackIDs && currentCard.actionDataOverride !== undefined) {
+            stackIDs.push(currentCard.actionDataOverride);
+          }
           matched = true;
           break;
         }
@@ -1202,7 +1217,8 @@ const buildPermanentsAsStack = (
       result.push({
         card: currentCard,
         count: 1,
-        id: `${currentCard.cardNumber}-${idIndex++}`
+        id: `${currentCard.cardNumber}-${idIndex++}`,
+        gemStackIDs: gemStackIDsFor(currentCard)
       });
     }
   }

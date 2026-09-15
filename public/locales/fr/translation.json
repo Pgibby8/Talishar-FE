@@ -516,7 +516,9 @@
   },
   "HAND": {
     "SCROLL_LEFT": "Faire défiler la main vers la gauche",
-    "SCROLL_RIGHT": "Faites défiler la main vers la droite"
+    "SCROLL_RIGHT": "Faites défiler la main vers la droite",
+    "HIDE_HAND": "Masquer la main",
+    "SHOW_HAND": "Afficher la main"
   },
   "HEADER": {
     "ABOUT": "À propos",
@@ -931,7 +933,11 @@
       "BAZAAR_TAB": "Bazar FaB",
       "CLEAR_SELECTION": "Effacer la sélection",
       "COMING_SOON": "À venir!",
-      "FAI_CC": "Faï (CC)",
+      "BRAVO_SAGE": "Bravo (Silver Age)",
+      "BRIAR_SAGE": "Briar (Silver Age)",
+      "FAI_CC": "Faï (Classic Constructed)",
+      "IRA_CC": "Ira (Classic Constructed)",
+      "IRA_SAGE": "Ira (Silver Age)",
       "FORMAT": "Format",
       "FORMATS": {
         "BLITZ": "Blitz",

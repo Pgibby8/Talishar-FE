@@ -19,9 +19,13 @@ import {
 interface GemSlider {
   gem?: 'none' | 'inactive' | 'active';
   cardID?: string;
+  cardIDs?: string[];
+  cardNumber?: string;
   zone?: string;
   controller?: number;
 }
+
+const ALWAYS_WAGER_HEROES = new Set(['olympia', 'olympia_prized_fighter']);
 
 const GemSlider = (props: GemSlider) => {
   const { playerID } = useAppSelector(getGameInfo, shallowEqual);
@@ -34,20 +38,34 @@ const GemSlider = (props: GemSlider) => {
   if (props.gem === undefined || props.gem === 'none') return null;
 
   const isActive = props.gem === 'active';
+  const isAlwaysWager =
+    !!props.cardNumber && ALWAYS_WAGER_HEROES.has(props.cardNumber);
   const equipmentGemHidden =
-    !props.zone && areEquipmentGemButtonsDisabled(gemButtonsDisabled);
+    !props.zone &&
+    !isAlwaysWager &&
+    areEquipmentGemButtonsDisabled(gemButtonsDisabled);
 
   if (equipmentGemHidden) return null;
 
-  const stateLabel = t(
-    isActive ? 'GEM_SLIDER.ACTIVE_LABEL' : 'GEM_SLIDER.INACTIVE_LABEL'
-  );
+  const stateLabel = isAlwaysWager
+    ? t(
+        isActive
+          ? 'GEM_SLIDER.ALWAYS_WAGER_ACTIVE_LABEL'
+          : 'GEM_SLIDER.ALWAYS_WAGER_INACTIVE_LABEL'
+      )
+    : t(isActive ? 'GEM_SLIDER.ACTIVE_LABEL' : 'GEM_SLIDER.INACTIVE_LABEL');
 
   const onClick = () => {
     dispatch(
       submitButton({
         button: {
-          buttonInput: (props.zone ? props.zone + '-' : '') + props.cardID,
+          buttonInput: props.zone
+            ? props.zone +
+              '-' +
+              (props.cardIDs && props.cardIDs.length > 1
+                ? props.cardIDs.join(',')
+                : props.cardID)
+            : props.cardID,
           mode: props.zone
             ? props.controller == playerID
               ? PROCESS_INPUT.TOGGLE_PERMANENT_ACTIVE
