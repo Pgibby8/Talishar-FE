@@ -96,7 +96,11 @@ const CardSurface = ({
   const handlePointerEnter = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === 'touch') return;
     onHoverStart?.();
-    if (event.pointerType === 'pen') onPenHover();
+    if (event.pointerType === 'pen') {
+      onPenHover();
+    } else {
+      onMouseEnter();
+    }
   };
   const handlePointerLeave = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== 'touch') onHoverEnd?.();
@@ -111,7 +115,6 @@ const CardSurface = ({
     <div
       className={className}
       ref={containerRef}
-      onMouseEnter={onMouseEnter}
       onMouseMove={tiltEnabled ? handleMouseMove : undefined}
       onMouseLeave={onSurfaceMouseLeave}
       onPointerDown={onPointerDown}
@@ -190,8 +193,9 @@ export default function CardPopUp({
   useEffect(() => {
     return () => {
       if (longPressTimer.current) clearTimeout(longPressTimer.current);
+      clearCardPreview(instanceId);
     };
-  }, []);
+  }, [instanceId]);
 
   useEffect(() => {
     if (!stickyActive) return;
@@ -235,7 +239,8 @@ export default function CardPopUp({
       xCoord,
       yCoord,
       isOpponent,
-      presentation
+      presentation,
+      owner: instanceId
     });
   };
 
@@ -259,7 +264,7 @@ export default function CardPopUp({
     if (getTapToPreviewSelectedCardKey() === selectionKey) {
       return;
     }
-    clearCardPreview();
+    clearCardPreview(instanceId);
   };
 
   const handleMouseLeave = () => {
