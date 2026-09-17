@@ -22,7 +22,9 @@ import { SiBookstack } from 'react-icons/si';
 import { MdArrowDropDown, MdArrowRight } from 'react-icons/md';
 import { Form, Formik, useFormikContext } from 'formik';
 import deckValidation from './validation';
-import StickyFooter from './components/stickyFooter/StickyFooter';
+import StickyFooter, {
+  LobbyPhase
+} from './components/stickyFooter/StickyFooter';
 import { toast } from 'react-hot-toast';
 import useAuth from 'hooks/useAuth';
 import useAdScript from 'hooks/useAdScript';
@@ -65,6 +67,7 @@ import { useWindowWidth } from 'hooks/useWindowDimensions';
 import { SubmitSideboardAPI } from 'interface/API/SubmitSideboard.php';
 import { useNavigate } from 'react-router-dom';
 import CardPortal from '../components/elements/cardPortal/CardPortal';
+import ChatCardDetail from '../components/elements/chatCardDetail/ChatCardDetail';
 import Matchups from './components/matchups/Matchups';
 import { GameLocationState } from 'interface/GameLocationState';
 import { saveGameAuthKey } from 'utils/LocalKeyManagement';
@@ -190,8 +193,28 @@ const Lobby = () => {
     }
   }, [gameID]);
 
+  const lobbyHasPhaseInfo = gameLobby?.isEquipmentPhase !== undefined;
+  const isEquipmentPhase = gameLobby?.isEquipmentPhase === true;
+  const lobbyPhase: LobbyPhase = !lobbyHasPhaseInfo
+    ? 'legacy'
+    : isEquipmentPhase
+    ? 'equipment'
+    : 'deck';
+  const opponentPhaseReady = isEquipmentPhase
+    ? gameLobby?.opponentEquipmentSubmitted
+    : gameLobby?.opponentSideboardSubmitted;
+
   useEffect(() => {
-    const opponentReady = gameLobby?.opponentSideboardSubmitted;
+    previousOpponentReadyRef.current = undefined;
+    setOpponentUnready(false);
+    if (opponentUnreadyTimerRef.current !== undefined) {
+      clearTimeout(opponentUnreadyTimerRef.current);
+      opponentUnreadyTimerRef.current = undefined;
+    }
+  }, [lobbyPhase]);
+
+  useEffect(() => {
+    const opponentReady = opponentPhaseReady;
     if (opponentReady === undefined) return;
 
     if (previousOpponentReadyRef.current === true && !opponentReady) {
@@ -212,7 +235,7 @@ const Lobby = () => {
     }
 
     previousOpponentReadyRef.current = opponentReady;
-  }, [gameLobby?.opponentSideboardSubmitted]);
+  }, [opponentPhaseReady]);
 
   useEffect(
     () => () => {
@@ -228,7 +251,8 @@ const Lobby = () => {
   const lobbyPresenceMessage = getLobbyPresenceMessage({
     hasOpponent,
     isSideboarding: gameLobby?.isSideboarding === true,
-    opponentReady: gameLobby?.opponentSideboardSubmitted === true,
+    isEquipmentPhase,
+    opponentReady: opponentPhaseReady === true,
     opponentUnready,
     bothReady: isStartingGame || gameLobby?.isMainGameReady === true,
     // The backend only sends this field during the choose-first-player phase,
@@ -238,7 +262,7 @@ const Lobby = () => {
   const lobbyPresenceState: 'ready' | 'unready' | 'waiting' =
     isStartingGame ||
     gameLobby?.isMainGameReady === true ||
-    gameLobby?.opponentSideboardSubmitted === true
+    opponentPhaseReady === true
       ? 'ready'
       : opponentUnready
       ? 'unready'
@@ -348,6 +372,19 @@ const Lobby = () => {
       toast.success(t('GAME_LOBBY.KICKED_SUCCESS'));
     } catch (err: any) {
       toast.error(err?.error || t('GAME_LOBBY.KICKED_FAILURE'));
+    }
+  };
+
+  const handleUnreadyEquipment = async () => {
+    try {
+      await submitLobbyInput({
+        gameName: gameID,
+        playerID: playerID,
+        authKey: authKey,
+        action: 'Unready Equipment'
+      }).unwrap();
+    } catch (err: any) {
+      toast.error(err?.error || t('GAME_LOBBY.EQUIPMENT_UNREADY_FAILURE'));
     }
   };
 
@@ -605,6 +642,14 @@ const Lobby = () => {
   const lobbyTooltip = lobbyTooltipParts.length
     ? lobbyTooltipParts.join('\n')
     : undefined;
+  const lobbyFirstPlayer = gameLobby?.firstPlayer;
+  const iGoFirst = lobbyFirstPlayer === playerID;
+  const showTurnOrder =
+    lobbyFirstPlayer !== undefined && (playerID === 1 || playerID === 2);
+  const turnOrderLabel = iGoFirst ? 'You go 1st' : 'You go 2nd';
+  const turnOrderTitle = iGoFirst
+    ? t('GAME_LOBBY.FIRST')
+    : t('GAME_LOBBY.SECOND');
   const showLobbySettings =
     lobbyMetaLine !== '' ||
     lobbyDescription !== '' ||
@@ -642,6 +687,13 @@ const Lobby = () => {
               </span>
             </span>
           )}
+          {showTurnOrder && (
+            <span className={styles.lobbySettingsItem} title={turnOrderTitle}>
+              <span className={styles.lobbySettingsLabel}>
+                {turnOrderLabel}
+              </span>
+            </span>
+          )}
         </div>
         {lobbyPresenceMessage && (
           <span
@@ -673,17 +725,33 @@ const Lobby = () => {
 
   const isOpponentLoading = !rightHero || rightHero === 'UNKNOWNHERO';
 
+  const effectiveTab =
+    lobbyHasPhaseInfo && (activeTab === 'equipment' || activeTab === 'deck')
+      ? isEquipmentPhase
+        ? 'equipment'
+        : 'deck'
+      : activeTab;
+  const showEquipmentTab = !lobbyHasPhaseInfo || isEquipmentPhase;
+  const showDeckTab = !lobbyHasPhaseInfo || !isEquipmentPhase;
+  const buildTab: 'equipment' | 'deck' = lobbyHasPhaseInfo
+    ? isEquipmentPhase
+      ? 'equipment'
+      : 'deck'
+    : activeTab === 'deck'
+    ? 'deck'
+    : 'equipment';
+
   const eqClasses = classNames(styles.tabButton, {
-    [styles.tabActive]: activeTab === 'equipment'
+    [styles.tabActive]: effectiveTab === 'equipment'
   });
   const deckClasses = classNames(styles.tabButton, {
-    [styles.tabActive]: activeTab === 'deck'
+    [styles.tabActive]: effectiveTab === 'deck'
   });
   const chatClasses = classNames(styles.tabButton, {
-    [styles.tabActive]: activeTab === 'chat'
+    [styles.tabActive]: effectiveTab === 'chat'
   });
   const matchupClasses = classNames(styles.tabButton, {
-    [styles.tabActive]: activeTab === 'matchups'
+    [styles.tabActive]: effectiveTab === 'matchups'
   });
   const leaveClasses = classNames(styles.lobbySecondaryButton);
 
@@ -836,9 +904,11 @@ const Lobby = () => {
 
   const handleFormSubmission = async (
     values: DeckResponse,
-    equipmentWarningConfirmed = false
+    equipmentWarningConfirmed = false,
+    phase: 'equipment' | 'deck' = 'deck'
   ) => {
-    if (!equipmentWarningConfirmed) {
+    const confirmsEquipment = phase === 'equipment' || !lobbyHasPhaseInfo;
+    if (confirmsEquipment && !equipmentWarningConfirmed) {
       const emptyEquipmentSlots = getEmptyEquipmentSlots(
         values,
         data.deck.modular
@@ -937,7 +1007,8 @@ const Lobby = () => {
       gameName: gameID,
       playerID: playerID,
       authKey: authKey,
-      submission: JSON.stringify(submitDeck) // the API unmarshals the JSON inside the unmarshaled JSON.
+      submission: JSON.stringify(submitDeck), // the API unmarshals the JSON inside the unmarshaled JSON.
+      phase
     };
 
     // Save sideboard changes to FaB Bazaar (sticky sideboarding) BEFORE
@@ -955,6 +1026,7 @@ const Lobby = () => {
     // If Bazaar deck/opponent are known but metafy credentials are missing,
     // force-refresh TryLoginAPI and retry with fresh values.
     if (
+      phase === 'deck' &&
       bazaarDeckId &&
       opponentHeroId &&
       (!resolvedMetafyId || !resolvedMetafyHash || !resolvedMetafyTimestamp)
@@ -973,6 +1045,7 @@ const Lobby = () => {
     }
 
     const canSyncBazaarSideboard =
+      phase === 'deck' &&
       bazaarDeckId &&
       opponentHeroId &&
       resolvedMetafyId &&
@@ -1015,6 +1088,12 @@ const Lobby = () => {
         requestBody
       ).unwrap();
 
+      const submitError = submitResponse?.deckError ?? submitResponse?.error;
+      if (submitError) {
+        toast.error(String(submitError));
+        return;
+      }
+
       // If game started, capture and store the auth key for future use
       if (submitResponse?.gameStarted && submitResponse?.authKey && gameID) {
         setIsStartingGame(true);
@@ -1044,7 +1123,7 @@ const Lobby = () => {
 
     const { values } = pendingEquipmentSubmission;
     setPendingEquipmentSubmission(null);
-    void handleFormSubmission(values, true);
+    void handleFormSubmission(values, true, 'equipment');
   };
 
   return (
@@ -1158,8 +1237,19 @@ const Lobby = () => {
           legs: initialEquipment(data.deck.legs),
           assignedModulars: { head: [], chest: [], arms: [], legs: [] }
         }}
-        onSubmit={(values) => handleFormSubmission(values)}
-        validationSchema={deckValidation(deckSize, maxDeckSize, handsTotal)}
+        onSubmit={(values) =>
+          handleFormSubmission(
+            values,
+            false,
+            lobbyPhase === 'equipment' ? 'equipment' : 'deck'
+          )
+        }
+        validationSchema={deckValidation(
+          deckSize,
+          maxDeckSize,
+          handsTotal,
+          lobbyPhase !== 'equipment'
+        )}
         validateOnChange={true}
         validateOnBlur={true}
         validateOnMount={true}
@@ -1167,6 +1257,7 @@ const Lobby = () => {
       >
         <Form className={styles.form}>
           <FormikDebugLogger />
+          <PhaseRevalidator phase={lobbyPhase} />
           <div className={styles.gridLayout}>
             <div className={styles.titleContainer}>
               <CardPopUp
@@ -1348,30 +1439,34 @@ const Lobby = () => {
                           </button>
                         </li>
                       )}
-                      <li>
-                        <button
-                          className={eqClasses}
-                          onClick={handleEquipmentClick}
-                          type="button"
-                        >
-                          <div className={styles.icon}>
-                            <GiCapeArmor />
-                          </div>
-                          {t('GAME_LOBBY.EQUIPMENT')}
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          className={deckClasses}
-                          onClick={handleDeckClick}
-                          type="button"
-                        >
-                          <div className={styles.icon}>
-                            <SiBookstack />
-                          </div>
-                          {t('GAME_LOBBY.DECK')}
-                        </button>
-                      </li>
+                      {showEquipmentTab && (
+                        <li>
+                          <button
+                            className={eqClasses}
+                            onClick={handleEquipmentClick}
+                            type="button"
+                          >
+                            <div className={styles.icon}>
+                              <GiCapeArmor />
+                            </div>
+                            {t('GAME_LOBBY.EQUIPMENT')}
+                          </button>
+                        </li>
+                      )}
+                      {showDeckTab && (
+                        <li>
+                          <button
+                            className={deckClasses}
+                            onClick={handleDeckClick}
+                            type="button"
+                          >
+                            <div className={styles.icon}>
+                              <SiBookstack />
+                            </div>
+                            {t('GAME_LOBBY.DECK')}
+                          </button>
+                        </li>
+                      )}
                       <li>
                         <button
                           className={chatClasses}
@@ -1393,42 +1488,46 @@ const Lobby = () => {
               <div className={styles.deckSelectorContainer}>
                 <nav className={styles.inLineNav}>
                   <ul>
-                    <li>
-                      <button
-                        className={eqClasses}
-                        onClick={handleEquipmentClick}
-                        type="button"
-                      >
-                        <div className={styles.icon}>
-                          <GiCapeArmor />
-                        </div>
-                        {t('GAME_LOBBY.EQUIPMENT')}
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        className={deckClasses}
-                        onClick={handleDeckClick}
-                        type="button"
-                      >
-                        <div className={styles.icon}>
-                          <SiBookstack />
-                        </div>
-                        {t('GAME_LOBBY.DECK')}
-                      </button>
-                    </li>
+                    {showEquipmentTab && (
+                      <li>
+                        <button
+                          className={eqClasses}
+                          onClick={handleEquipmentClick}
+                          type="button"
+                        >
+                          <div className={styles.icon}>
+                            <GiCapeArmor />
+                          </div>
+                          {t('GAME_LOBBY.EQUIPMENT')}
+                        </button>
+                      </li>
+                    )}
+                    {showDeckTab && (
+                      <li>
+                        <button
+                          className={deckClasses}
+                          onClick={handleDeckClick}
+                          type="button"
+                        >
+                          <div className={styles.icon}>
+                            <SiBookstack />
+                          </div>
+                          {t('GAME_LOBBY.DECK')}
+                        </button>
+                      </li>
+                    )}
                   </ul>
                   <div style={{ marginLeft: 'auto' }}>
                     <DesktopDeckSelectionButtons
                       deckIndexed={deckIndexed}
                       deckSBIndexed={deckSBIndexed}
-                      activeTab={activeTab}
+                      activeTab={buildTab}
                       filtersExpanded={filtersExpanded}
                       setFiltersExpanded={setFiltersExpanded}
                     />
                   </div>
                 </nav>
-                {activeTab !== 'deck' && (
+                {buildTab === 'equipment' && (
                   <Equipment
                     lobbyInfo={data}
                     weapons={weaponsIndexed}
@@ -1441,7 +1540,7 @@ const Lobby = () => {
                     setModularState={setModularState}
                   />
                 )}
-                {activeTab === 'deck' && (
+                {buildTab === 'deck' && (
                   <Deck
                     deck={[...deckIndexed, ...deckSBIndexed]}
                     cardDictionary={data?.deck?.cardDictionary}
@@ -1453,7 +1552,7 @@ const Lobby = () => {
               </div>
             ) : (
               <>
-                {activeTab === 'equipment' && (
+                {effectiveTab === 'equipment' && (
                   <Equipment
                     lobbyInfo={data}
                     weapons={weaponsIndexed}
@@ -1466,7 +1565,7 @@ const Lobby = () => {
                     setModularState={setModularState}
                   />
                 )}
-                {activeTab === 'deck' && (
+                {effectiveTab === 'deck' && (
                   <Deck
                     deck={[...deckIndexed, ...deckSBIndexed]}
                     cardDictionary={data?.deck?.cardDictionary}
@@ -1477,7 +1576,7 @@ const Lobby = () => {
                 )}
               </>
             )}
-            {(activeTab === 'chat' || isWideScreen) && (
+            {(effectiveTab === 'chat' || isWideScreen) && (
               <div
                 className={
                   !isDeckValid
@@ -1497,16 +1596,16 @@ const Lobby = () => {
               </div>
             )}
 
-            {!isWideScreen && activeTab !== 'chat' && (
+            {!isWideScreen && effectiveTab !== 'chat' && (
               <div className={styles.mobileBottomActions}></div>
             )}
 
-            {!isWideScreen && activeTab !== 'chat' && (
+            {!isWideScreen && effectiveTab !== 'chat' && (
               <div className={styles.spacer}></div>
             )}
 
             {shouldShowMatchupsUI &&
-              (activeTab === 'matchups' || isWideScreen) && (
+              (effectiveTab === 'matchups' || isWideScreen) && (
                 <Matchups
                   refetch={refetch}
                   selectedMatchupId={selectedMatchupId}
@@ -1515,6 +1614,7 @@ const Lobby = () => {
                   isReadied={
                     !!(
                       gameLobby?.canUnreadySideboard ||
+                      gameLobby?.canUnreadyEquipment ||
                       gameLobby?.amIChoosingFirstPlayer
                     )
                   }
@@ -1531,11 +1631,16 @@ const Lobby = () => {
               needToDoDisclaimer={needToDoDisclaimer}
               onUnreadySideboard={handleUnreadySideboard}
               onIsValidChange={setIsDeckValid}
+              phase={lobbyPhase}
+              canSubmitEquipment={gameLobby?.canSubmitEquipment ?? false}
+              canUnreadyEquipment={gameLobby?.canUnreadyEquipment ?? false}
+              onUnreadyEquipment={handleUnreadyEquipment}
             />
           </div>
         </Form>
       </Formik>
       <CardPortal />
+      <ChatCardDetail />
 
       {/* Opponent note tooltip in lobby */}
       {opponentNote &&
@@ -1554,6 +1659,16 @@ const Lobby = () => {
         )}
     </main>
   );
+};
+
+const PhaseRevalidator = ({ phase }: { phase: LobbyPhase }) => {
+  const { validateForm } = useFormikContext<DeckResponse>();
+
+  useEffect(() => {
+    void validateForm();
+  }, [phase, validateForm]);
+
+  return null;
 };
 
 const FormikDebugLogger = () => {

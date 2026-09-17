@@ -112,7 +112,6 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     id: 'cardModes',
     tab: 'cardSpecific',
     labelKey: 'SETTINGS.GROUPS.CARD_MODES',
-    tooltipKey: 'SETTINGS.GROUPS.CARD_MODES_TOOLTIP'
   },
   {
     id: 'appearance',
@@ -274,6 +273,17 @@ export const SETTINGS_DEFS: SettingDef[] = [
     visible: inAMatch
   },
   {
+    kind: 'toggle',
+    key: 'manualValda',
+    group: 'cardModes',
+    labelKey: 'SETTINGS.MANUAL_VALDA_MODE',
+    tooltipKey: 'SETTINGS.MANUAL_VALDA_MODE_TOOLTIP',
+    storage: 'account',
+    name: optConst.MANUAL_VALDA,
+    defaultOn: false,
+    visible: inAMatch
+  },
+  {
     kind: 'custom',
     key: 'theme',
     group: 'appearance',
@@ -321,6 +331,17 @@ export const SETTINGS_DEFS: SettingDef[] = [
     labelKey: 'SETTINGS.ALTERNATE_ART',
     storage: 'account',
     name: optConst.DISABLE_ALT_ARTS,
+    invert: true,
+    defaultOn: true
+  },
+  {
+    kind: 'toggle',
+    key: 'layerGoAgainIcon',
+    group: 'cardVisuals',
+    labelKey: 'SETTINGS.LAYER_GO_AGAIN_ICON',
+    tooltipKey: 'SETTINGS.LAYER_GO_AGAIN_ICON_TOOLTIP',
+    storage: 'account',
+    name: optConst.HIDE_LAYER_GO_AGAIN,
     invert: true,
     defaultOn: true
   },

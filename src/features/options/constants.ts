@@ -19,6 +19,7 @@ export const MY_PLAYMAT = 'Playmat';
 export const ALWAYS_ALLOW_UNDO = 'AlwaysAllowUndo';
 export const MANUAL_TUNIC = 'ManualTunic';
 export const MANUAL_DYNAMO = 'ManualDynamo';
+export const MANUAL_VALDA = 'ManualValda';
 export const DISABLE_FABINSIGHTS = 'DisableFabInsights';
 export const DISABLE_HERO_INTRO = 'DisableHeroIntro';
 export const MIRRORED_BOARD_LAYOUT = 'MirroredBoardLayout';
@@ -29,6 +30,7 @@ export const HIDE_GAMES_FROM_FRIENDS = 'HideGamesFromFriends';
 export const GEMS_OFF_BY_DEFAULT = 'GemsOffByDefault';
 export const AUTO_PASS_TURN = 'AutoPassTurn';
 export const DISABLE_HOLD_TO_AUTO_PASS = 'DisableHoldToAutoPass';
+export const HIDE_LAYER_GO_AGAIN = 'HideLayerGoAgain';
 
 export enum HOLD_PRIORITY_ENUM {
   AUTO = 0,

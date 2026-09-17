@@ -9,6 +9,7 @@ export interface GetLobbyRefreshResponse {
   lastUpdate?: number;
   authKey?: string;
   amIChoosingFirstPlayer?: boolean;
+  firstPlayer?: number;
   isPrivateLobby?: boolean;
   visibility?: 'public' | 'private' | 'friends-only';
   format?: string;
@@ -33,6 +34,11 @@ export interface GetLobbyRefreshResponse {
   opponentSideboardSubmitted?: boolean;
   canSubmitSideboard?: boolean;
   canUnreadySideboard?: boolean;
+  isEquipmentPhase?: boolean;
+  myEquipmentSubmitted?: boolean;
+  opponentEquipmentSubmitted?: boolean;
+  canSubmitEquipment?: boolean;
+  canUnreadyEquipment?: boolean;
   myDeckLink?: string;
   matchups?: Matchup[];
   legalHeroes?: LegalHero[];
