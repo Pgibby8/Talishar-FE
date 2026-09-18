@@ -13,6 +13,7 @@ import testData from './mockdata.json';
 import '../GameViewport.css';
 import styles from './Lobby.module.css';
 import Equipment from './components/equipment/Equipment';
+import Loadout, { MyLoadout } from './components/loadout/Loadout';
 import classNames from 'classnames';
 import { FaExclamationCircle } from 'react-icons/fa';
 import { LuGlobe, LuUsers } from 'react-icons/lu';
@@ -42,7 +43,7 @@ import { useAppSelector } from 'app/Hooks';
 import { shallowEqual } from 'react-redux';
 import { Matchup } from 'interface/API/GetLobbyRefresh.php';
 import { RootState } from 'app/Store';
-import { createPatreonIconMap } from 'utils/patronIcons';
+import UserBadgeIcons from 'components/UserBadgeIcons/UserBadgeIcons';
 import { DeckResponse, Weapon } from 'interface/API/GetLobbyInfo.php';
 import LobbyUpdateHandler from './components/updateHandler/SideboardUpdateHandler';
 import {
@@ -54,7 +55,7 @@ import {
 import { JUDGE_HUB_DISCORD_URL } from 'constants/socialLinks';
 import { getReadableFormatName, getShortFormatName } from 'utils/formatUtils';
 import { masteryLevelPreview } from 'features/mastery/mastery';
-import MasteryBorder from 'features/mastery/MasteryBorder';
+import MasteryPlate from 'features/mastery/MasteryPlate';
 
 const COMPETITIVE_FORMATS = new Set([
   GAME_FORMAT.COMPETITIVE_CC,
@@ -92,7 +93,10 @@ import {
 import { DISABLE_ALT_ARTS } from 'features/options/constants';
 import { useTranslation, Trans } from 'react-i18next';
 import { EquipmentSlotName, getEmptyEquipmentSlots } from './equipmentWarning';
-import { getLobbyPresenceMessage } from 'features/LobbyPresence';
+import {
+  getLobbyPresenceMessage,
+  getSelfUnconfirmedPhase
+} from 'features/LobbyPresence';
 import {
   extractBazaarDeckIdFromLink,
   supportsAutomaticMatchups
@@ -259,6 +263,21 @@ const Lobby = () => {
     // so false means that phase is live and the opponent is the one choosing.
     opponentChoosingFirstPlayer: gameLobby?.amIChoosingFirstPlayer === false
   });
+  const selfUnconfirmedPhase = getSelfUnconfirmedPhase({
+    isSideboarding: gameLobby?.isSideboarding === true,
+    isEquipmentPhase,
+    mySubmitted: isEquipmentPhase
+      ? gameLobby?.myEquipmentSubmitted === true
+      : gameLobby?.mySideboardSubmitted === true,
+    bothReady: isStartingGame || gameLobby?.isMainGameReady === true,
+    choosingFirstPlayer: gameLobby?.amIChoosingFirstPlayer !== undefined
+  });
+  const selfUnconfirmedMessage =
+    selfUnconfirmedPhase === 'equipment'
+      ? t('GAME_LOBBY.UNCONFIRMED_ARENA')
+      : selfUnconfirmedPhase === 'deck'
+      ? t('GAME_LOBBY.UNCONFIRMED_DECK')
+      : null;
   const lobbyPresenceState: 'ready' | 'unready' | 'waiting' =
     isStartingGame ||
     gameLobby?.isMainGameReady === true ||
@@ -375,29 +394,16 @@ const Lobby = () => {
     }
   };
 
-  const handleUnreadyEquipment = async () => {
+  const handleUnready = async (action: string, failureKey: string) => {
     try {
       await submitLobbyInput({
         gameName: gameID,
         playerID: playerID,
         authKey: authKey,
-        action: 'Unready Equipment'
+        action: action
       }).unwrap();
     } catch (err: any) {
-      toast.error(err?.error || t('GAME_LOBBY.EQUIPMENT_UNREADY_FAILURE'));
-    }
-  };
-
-  const handleUnreadySideboard = async () => {
-    try {
-      await submitLobbyInput({
-        gameName: gameID,
-        playerID: playerID,
-        authKey: authKey,
-        action: 'Unready Sideboard'
-      }).unwrap();
-    } catch (err: any) {
-      toast.error(err?.error || t('GAME_LOBBY.SIDEBOARD_UNREADY_FAILURE'));
+      toast.error(err?.error || t(failureKey));
     }
   };
 
@@ -519,8 +525,6 @@ const Lobby = () => {
   if (!data || !data.deck || Object.keys(data).length === 0) {
     data = testData;
   }
-
-  if (!data || !data.deck) return null;
 
   useEffect(() => {
     if (playerID === 3) return;
@@ -653,7 +657,8 @@ const Lobby = () => {
   const showLobbySettings =
     lobbyMetaLine !== '' ||
     lobbyDescription !== '' ||
-    lobbyPresenceMessage !== null;
+    lobbyPresenceMessage !== null ||
+    selfUnconfirmedMessage !== null;
   const lobbySettingsContent = (
     <>
       <div className={styles.lobbySettingsRow}>
@@ -712,6 +717,15 @@ const Lobby = () => {
           </span>
         )}
       </div>
+      {selfUnconfirmedMessage && (
+        <div className={styles.lobbySelfAlert} role="status" aria-live="polite">
+          <FaExclamationCircle
+            className={styles.lobbySelfAlertIcon}
+            aria-hidden="true"
+          />
+          <span>{selfUnconfirmedMessage}</span>
+        </div>
+      )}
       {lobbyDescription !== '' && (
         <span className={styles.lobbySettingsDescription}>
           {lobbyDescription}
@@ -829,14 +843,34 @@ const Lobby = () => {
 
   type EquipFieldName = 'head' | 'chest' | 'arms' | 'legs';
 
+  const defaultLoadout = React.useMemo(() => {
+    const pool = [...(data.deck.modular ?? [])];
+    const equipment: Record<EquipFieldName, string> = {
+      head: initialEquipment(data.deck.head),
+      chest: initialEquipment(data.deck.chest),
+      arms: initialEquipment(data.deck.arms),
+      legs: initialEquipment(data.deck.legs)
+    };
+    const assignedModulars: Record<EquipFieldName, string[]> = {
+      head: [],
+      chest: [],
+      arms: [],
+      legs: []
+    };
+
+    (['head', 'chest', 'arms', 'legs'] as EquipFieldName[]).forEach((field) => {
+      if (equipment[field] !== 'NONE00' || pool.length === 0) return;
+      const card = pool.shift() as string;
+      equipment[field] = card;
+      assignedModulars[field] = [card];
+    });
+
+    return { equipment, assignedModulars, modular: pool };
+  }, [data.deck]);
+
   const [assigned, setAssigned] = React.useState<
     Record<EquipFieldName, string[]>
-  >({
-    head: [],
-    chest: [],
-    arms: [],
-    legs: []
-  });
+  >(defaultLoadout.assignedModulars);
 
   const hands = React.useMemo(
     () => [...weaponsIndexed, ...weaponsSBIndexed],
@@ -856,13 +890,13 @@ const Lobby = () => {
   );
 
   const [modularState, setModularState] = React.useState<string[]>(
-    baseEquipment.modular
+    defaultLoadout.modular
   );
 
   React.useEffect(() => {
-    setAssigned({ head: [], chest: [], arms: [], legs: [] });
-    setModularState(baseEquipment.modular);
-  }, [baseEquipment.modular]);
+    setAssigned(defaultLoadout.assignedModulars);
+    setModularState(defaultLoadout.modular);
+  }, [defaultLoadout]);
 
   const oneHandedHeroes = [
     'kayo_armed_and_dangerous',
@@ -1231,11 +1265,11 @@ const Lobby = () => {
             weaponsIndexed.length > 0
               ? weaponsIndexed
               : [weaponsSBIndexed.find((w) => w.img === 'NONE00')!],
-          head: initialEquipment(data.deck.head),
-          chest: initialEquipment(data.deck.chest),
-          arms: initialEquipment(data.deck.arms),
-          legs: initialEquipment(data.deck.legs),
-          assignedModulars: { head: [], chest: [], arms: [], legs: [] }
+          head: defaultLoadout.equipment.head,
+          chest: defaultLoadout.equipment.chest,
+          arms: defaultLoadout.equipment.arms,
+          legs: defaultLoadout.equipment.legs,
+          assignedModulars: defaultLoadout.assignedModulars
         }}
         onSubmit={(values) =>
           handleFormSubmission(
@@ -1268,35 +1302,19 @@ const Lobby = () => {
                 <div
                   className={styles.leftCol}
                   style={{ backgroundImage: leftPic }}
-                  data-mastery-level={leftMasteryLevel}
                 >
-                  <MasteryBorder level={leftMasteryLevel} />
+                  <MasteryPlate level={leftMasteryLevel} variant="inside" />
+                  <MyLoadout />
                   <div className={styles.dimPic}>
                     <h3 aria-busy={isLoading}>
-                      {createPatreonIconMap(
-                        userPatronStatus.isContributor,
-                        userPatronStatus.isPvtVoidPatron,
-                        userPatronStatus.isPatron,
-                        false,
-                        userMetafyTiers.length > 0 ? userMetafyTiers : undefined
-                      )
-                        .filter((icon) => icon.condition)
-                        .map((icon, index) => (
-                          <a
-                            key={`${icon.src}-${index}`}
-                            href={icon.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={icon.title}
-                            className={styles.lobbyIconLink}
-                          >
-                            <img
-                              src={icon.src}
-                              alt={icon.title}
-                              className={styles.lobbyIcon}
-                            />
-                          </a>
-                        ))}
+                      <UserBadgeIcons
+                        isContributor={userPatronStatus.isContributor}
+                        isPvtVoidPatron={userPatronStatus.isPvtVoidPatron}
+                        isPatron={userPatronStatus.isPatron}
+                        metafyTiers={userMetafyTiers}
+                        linkClassName={styles.lobbyIconLink}
+                        iconClassName={styles.lobbyIcon}
+                      />
                       <span className={styles.lobbyPlayerName}>
                         {String(data.displayName ?? '').substring(0, 15)}
                       </span>
@@ -1312,9 +1330,15 @@ const Lobby = () => {
                 <div
                   className={styles.rightCol}
                   style={{ backgroundImage: rightPic }}
-                  data-mastery-level={rightMasteryLevel}
                 >
-                  <MasteryBorder level={rightMasteryLevel} />
+                  <MasteryPlate level={rightMasteryLevel} variant="inside" />
+                  {gameLobby?.theirArena && (
+                    <Loadout
+                      loadout={gameLobby.theirArena}
+                      mirrored
+                      isOpponent
+                    />
+                  )}
                   {isOpponentLoading && (
                     <div
                       className={styles.opponentLoading}
@@ -1357,32 +1381,18 @@ const Lobby = () => {
                           aria-busy={!gameLobby}
                           style={{ cursor: opponentNote ? 'help' : 'default' }}
                         >
-                          {createPatreonIconMap(
-                            gameLobby?.theirIsContributor ?? false,
-                            gameLobby?.theirIsPvtVoidPatron ?? false,
-                            gameLobby?.theirIsPatron ? true : false,
-                            false,
-                            (gameLobby?.theirMetafyTiers?.length ?? 0) > 0
-                              ? gameLobby!.theirMetafyTiers
-                              : undefined
-                          )
-                            .filter((icon) => icon.condition)
-                            .map((icon, index) => (
-                              <a
-                                key={`${icon.src}-${index}`}
-                                href={icon.href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title={icon.title}
-                                className={styles.lobbyIconLink}
-                              >
-                                <img
-                                  src={icon.src}
-                                  alt={icon.title}
-                                  className={styles.lobbyIcon}
-                                />
-                              </a>
-                            ))}
+                          <UserBadgeIcons
+                            isContributor={
+                              gameLobby?.theirIsContributor ?? false
+                            }
+                            isPvtVoidPatron={
+                              gameLobby?.theirIsPvtVoidPatron ?? false
+                            }
+                            isPatron={gameLobby?.theirIsPatron ? true : false}
+                            metafyTiers={gameLobby?.theirMetafyTiers}
+                            linkClassName={styles.lobbyIconLink}
+                            iconClassName={styles.lobbyIcon}
+                          />
                           <span className={styles.lobbyPlayerName}>
                             {isStreamerMode
                               ? t('GAME_LOBBY.OPPONENT')
@@ -1629,12 +1639,22 @@ const Lobby = () => {
               handleLeave={handleLeave}
               isWidescreen={isWideScreen}
               needToDoDisclaimer={needToDoDisclaimer}
-              onUnreadySideboard={handleUnreadySideboard}
+              onUnreadySideboard={() =>
+                handleUnready(
+                  'Unready Sideboard',
+                  'GAME_LOBBY.SIDEBOARD_UNREADY_FAILURE'
+                )
+              }
               onIsValidChange={setIsDeckValid}
               phase={lobbyPhase}
               canSubmitEquipment={gameLobby?.canSubmitEquipment ?? false}
               canUnreadyEquipment={gameLobby?.canUnreadyEquipment ?? false}
-              onUnreadyEquipment={handleUnreadyEquipment}
+              onUnreadyEquipment={() =>
+                handleUnready(
+                  'Unready Equipment',
+                  'GAME_LOBBY.EQUIPMENT_UNREADY_FAILURE'
+                )
+              }
             />
           </div>
         </Form>

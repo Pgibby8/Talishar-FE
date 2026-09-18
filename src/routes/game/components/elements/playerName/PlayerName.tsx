@@ -5,6 +5,7 @@ import { useAppSelector } from 'app/Hooks';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  useGetHeroMasteryQuery,
   useAddFriendMutation,
   useGetSentRequestsQuery,
   useCancelRequestMutation,
@@ -18,8 +19,11 @@ import { MdBlock } from 'react-icons/md';
 import { MdNotes } from 'react-icons/md';
 import { IoMdArrowDropdown } from 'react-icons/io';
 import PlayerNoteModal from './PlayerNoteModal';
-import { createPatreonIconMap } from 'utils/patronIcons';
+import UserBadgeIcons from 'components/UserBadgeIcons/UserBadgeIcons';
 import useSetting from 'hooks/useSetting';
+import useAuth from 'hooks/useAuth';
+import MasteryPlate from 'features/mastery/MasteryPlate';
+import { masteryLevelPreview } from 'features/mastery/mastery';
 import { IS_STREAMER_MODE } from 'features/options/constants';
 import { useTranslation } from 'react-i18next';
 
@@ -50,6 +54,17 @@ export default function PlayerName(player: Player) {
   const isStreamerMode =
     String(useSetting({ settingName: IS_STREAMER_MODE })?.value) === '1';
 
+  const gameID = useAppSelector(
+    (state: RootState) => state.game.gameInfo.gameID
+  );
+  const { isLoggedIn } = useAuth();
+  // Cached alongside the versus intro's request, and the backend only answers
+  // it for the two participants, so spectators simply get no frame.
+  const { data: masteryData } = useGetHeroMasteryQuery(
+    { gameName: gameID, scope: 'game' },
+    { skip: !isLoggedIn }
+  );
+
   // Get both player names
   const playerOneName = useAppSelector(
     (state: RootState) => state.game.playerOne.Name
@@ -73,6 +88,24 @@ export default function PlayerName(player: Player) {
   };
 
   const displayedPlayerNumber = getDisplayedPlayerNumber();
+
+  // gamePlayers is keyed by the game's own seats, while
+  // displayedPlayerNumber is a display index that reads 1 for whoever is
+  // seated here - so it only doubles as a seat when nobody is.
+  const isViewer = playerID === 3 || isReplay;
+  const masterySeat = isViewer
+    ? displayedPlayerNumber
+    : player.isPlayer
+    ? playerID
+    : 3 - playerID;
+
+  // The frame the player picked for this hero, not their raw earned level.
+  const masteryLevel =
+    masteryLevelPreview(
+      player.isPlayer ? 'masteryLevel' : 'opponentMasteryLevel'
+    ) ??
+    masteryData?.gamePlayers?.[String(masterySeat)]?.level ??
+    0;
 
   // Determine which player name to display
   let playerName;
@@ -339,18 +372,6 @@ export default function PlayerName(player: Player) {
     }
   };
 
-  const iconMap = useMemo(
-    () =>
-      createPatreonIconMap(
-        isContributor,
-        isPvtVoidPatron,
-        isPatron,
-        isBotOpponent,
-        metafyTiers
-      ),
-    [isContributor, isPvtVoidPatron, isPatron, isBotOpponent, metafyTiers]
-  );
-
   const statusClass = useMemo(() => {
     if (metafyTiers && metafyTiers.length > 0) return styles.metafy;
     if (isPvtVoidPatron) return styles.pvtVoidPatron;
@@ -364,27 +385,20 @@ export default function PlayerName(player: Player) {
       className={`${styles.playerName} ${statusClass} ${
         player.isPlayer ? styles.playerTwo : ''
       } ${playerID === 3 ? styles.spectator : ''}`}
+      data-framed={masteryLevel > 0 ? '' : undefined}
       ref={dropdownRef}
     >
+      <MasteryPlate level={masteryLevel} size="compact" />
       <div className={styles.nameContainer}>
         <div className={styles.nameContent}>
-          {iconMap
-            .filter((icon) => icon.condition)
-            .map((icon, index) => (
-              <a
-                href={icon.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                key={`${icon.src}-${index}`}
-              >
-                <img
-                  className={styles.icon}
-                  src={icon.src}
-                  title={icon.title}
-                  alt={icon.title}
-                />
-              </a>
-            ))}
+          <UserBadgeIcons
+            isContributor={isContributor}
+            isPvtVoidPatron={isPvtVoidPatron}
+            isPatron={isPatron}
+            isPracticeDummy={isBotOpponent}
+            metafyTiers={metafyTiers}
+            iconClassName={styles.icon}
+          />
           <span className={styles.name}>
             {String(playerName ?? '')
               .substring(0, 30)
