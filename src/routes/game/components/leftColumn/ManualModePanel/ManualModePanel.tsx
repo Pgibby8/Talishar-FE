@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './ManualModePanel.module.css';
-import useSetting from 'hooks/useSetting';
-import { MANUAL_MODE } from 'features/options/constants';
+import useManualMode, { useIsPrivateGame } from 'hooks/useManualMode';
 import { useAppDispatch, useAppSelector } from 'app/Hooks';
 import { submitButton } from 'features/game/GameSlice';
 import { PROCESS_INPUT } from 'appConstants';
@@ -25,40 +24,37 @@ export default function ManualModePanel() {
     isDeckOrganizerOpen,
     setIsDeckOrganizerOpen
   } = usePanelContext();
-  const isManualMode = useSetting({ settingName: MANUAL_MODE })?.value === '1';
-  const isLocalEnvironment =
-    import.meta.env.MODE === 'development' ||
-    window.location.hostname === 'localhost';
+  const { canUseManualMode, isManualMode } = useManualMode();
+  const isPrivateGame = useIsPrivateGame();
   const isPracticeDummy = useAppSelector(
     (state: RootState) => state.game.playerTwo.Name === 'Practice Dummy'
   );
-  const isReplay = useAppSelector(
-    (state: RootState) => state.game.gameInfo.isReplay
-  );
-  const isOpponentAI = useAppSelector(
-    (state: RootState) => state.game.gameInfo.isOpponentAI ?? false
-  );
-
-  useEffect(() => {
-    if (isManualMode && !isMobileOrTablet) {
-      setIsOpen(true);
-    }
-  }, [isManualMode, isMobileOrTablet]);
 
   useEffect(() => {
     setIsOpen(isManualModeOpen);
   }, [isManualModeOpen]);
 
-  if (
-    isReplay ||
-    (!isLocalEnvironment && !isManualMode && !isPracticeDummy && !isOpponentAI)
-  ) {
+  useEffect(() => {
+    if (isManualMode && (!isMobileOrTablet || isPrivateGame)) {
+      setIsOpen(true);
+    }
+  }, [isManualMode, isMobileOrTablet, isPrivateGame]);
+
+  useEffect(() => {
+    if (!canUseManualMode) {
+      setIsOpen(false);
+      setIsManualModeOpen(false);
+      setIsDeckOrganizerOpen(false);
+    }
+  }, [canUseManualMode]);
+
+  if (!canUseManualMode) {
     return null;
   }
 
   return (
     <>
-      {!isMobileOrTablet && (
+      {!isMobileOrTablet && !isPrivateGame && (
         <button
           className={`${styles.manualModeTab} ${
             isOpen || isDevToolOpen ? styles.hidden : ''

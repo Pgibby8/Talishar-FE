@@ -116,7 +116,9 @@ export const PROCESS_INPUT = {
   CONFIRM_THIS_TURN_UNDO: 100018,
   CONFIRM_LAST_TURN_UNDO: 100019,
   DECLINE_CHAT: 100020,
-  CONFIRM_CHAIN_LINK_UNDO: 100022
+  CONFIRM_CHAIN_LINK_UNDO: 100022,
+  SAVE_SNAPSHOT: 100023,
+  RESTART_PUZZLE: 100024
 };
 
 // Default shortcut inputs
@@ -427,6 +429,9 @@ export const URL_END_POINT = {
   SUBMIT_LOBBY_INPUT: 'APIs/SubmitLobbyInput.php',
   KICK_PLAYER: 'APIs/KickPlayer.php',
   GET_MOD_PAGE_DATA: 'APIs/GetModPageData.php',
+  GET_PROMPT_STATS: 'APIs/GetPromptStats.php',
+  GET_PUZZLE_CANDIDATES: 'APIs/GetPuzzleCandidates.php',
+  CREATE_PUZZLE_GAME: 'APIs/CreatePuzzleGame.php',
   RESET_ALL_RUST_COUNTERS: 'APIs/ResetAllRustCounters.php',
   SEARCH_USERNAMES: 'APIs/SearchUsernames.php',
   BAN_PLAYER: 'BanPlayer.php',
@@ -439,6 +444,8 @@ export const URL_END_POINT = {
   GET_LAST_ACTIVE_GAME: 'APIs/GetLastActiveGame.php',
   SHARE_REPLAY: 'APIs/ShareReplay.php',
   CREATE_SHARED_REPLAY_GAME: 'APIs/CreateSharedReplayGame.php',
+  CREATE_SNAPSHOT_GAME: 'APIs/CreateSnapshotGame.php',
+  JOIN_SNAPSHOT_GAME: 'APIs/JoinSnapshotGame.php',
   SYNC_METAFY_SUBSCRIBERS: 'APIs/SyncMetafySubscribers.php',
   GET_APP_INFO: 'AccountFiles/GetAppInfoAPI.php',
   GET_HERO_MASTERY: 'APIs/GetHeroMastery.php',

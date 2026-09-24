@@ -6,7 +6,8 @@ const COLOR_MAPPING: { [key: string]: string } = {
   '0': '#999999',
   '1': '#af1518',
   '2': '#daa520',
-  '3': '#009ddf'
+  '3': '#009ddf',
+  '4': '#9b5de0'
 };
 
 const ELEMENT_COLOR_MAPPING: {
@@ -475,6 +476,22 @@ export const parseTextToElements = (inputString: string): ReactNode[] => {
   }
 
   return elements.length > 0 ? elements : [inputString];
+};
+
+const CARD_ID_RE = new RegExp(
+  `${CARDRE.source}|ShowDetail\\(event,\\s*'\\./WebpImages/([^']+?)\\.webp'`,
+  'g'
+);
+
+export const cardIDsInText = (inputString: string): string[] => {
+  const cardIDs: string[] = [];
+  const regex = new RegExp(CARD_ID_RE);
+  let match;
+  while ((match = regex.exec(inputString)) !== null) {
+    const cardID = match[1] ?? match[5].replace(/ /g, '_');
+    if (cardID !== 'element' && !cardIDs.includes(cardID)) cardIDs.push(cardID);
+  }
+  return cardIDs;
 };
 
 /**

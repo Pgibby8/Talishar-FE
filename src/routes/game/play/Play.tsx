@@ -37,6 +37,7 @@ import { PanelProvider } from '../components/leftColumn/PanelContext';
 import usePlayerPresenceReporter from 'hooks/usePlayerPresenceReporter';
 import useSuppressTouchImageMenu from 'hooks/useSuppressTouchImageMenu';
 import useAdScript, { wasAdProviderLoadedInDocument } from 'hooks/useAdScript';
+import useSupporterStatus from 'hooks/useSupporterStatus';
 import {
   CardScaleVariables,
   HeroInfoSync,
@@ -45,23 +46,7 @@ import {
 } from './PlaySideEffects';
 import { prefetchCardKeywords } from 'utils/cardKeywords';
 import { ReplayPlaybackProvider } from './ReplayPlaybackContext';
-
-const TOAST_STYLE: React.CSSProperties = {
-  background: 'var(--theme-tertiary)',
-  color: 'var(--white)',
-  border: '1px solid var(--theme-border)',
-  padding: '0.5rem',
-  wordBreak: 'break-word',
-  maxWidth: '100vw',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  userSelect: 'none',
-  msUserSelect: 'none',
-  WebkitUserSelect: 'none',
-  MozUserSelect: 'none',
-  zIndex: 10001
-};
-const TOAST_OPTIONS = { style: TOAST_STYLE };
+import { TOAST_OPTIONS } from 'constants/toastOptions';
 
 const isLoadingErrorPreviewEnabled = () =>
   import.meta.env.DEV &&
@@ -134,7 +119,14 @@ function Play() {
     }
   }, []);
 
-  useAdScript(false);
+  const turnPhase = useAppSelector(
+    (state: any) => state.game.turnPhase?.turnPhase
+  );
+  const { showAds } = useSupporterStatus();
+  const isGameOver = turnPhase === 'OVER';
+
+  // Keep the play route ad-free until the end-game stats are displayed.
+  useAdScript(isGameOver && showAds, true);
   const { t } = useTranslation();
   usePageTitle(t('PAGES.GAME_PLAY'));
   usePlayerPresenceReporter();

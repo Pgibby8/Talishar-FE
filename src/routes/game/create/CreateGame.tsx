@@ -62,43 +62,8 @@ import {
 } from './gameDescription';
 import MasteryProgressCard from 'features/mastery/MasteryProgressCard';
 import { emptyMastery } from 'features/mastery/mastery';
-
-const getCookie = (name: string): string | null => {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-  return null;
-};
-
-const setCookie = (name: string, value: string, days = 365) => {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/`;
-};
-
-const shortenFormat = (format: string): string => {
-  if (!format) return '';
-  if (format.toLowerCase() === 'classic constructed') return 'CC';
-  // Capitalize first letter of other formats
-  return format.charAt(0).toUpperCase() + format.slice(1).toLowerCase();
-};
-
-const formatDeckLabel = (
-  deckName: string,
-  format: string | null,
-  maxLength = 58
-): string => {
-  const name = String(deckName ?? '');
-  const formatStr = format ? ` (${shortenFormat(format)})` : '';
-  const combined = `${name}${formatStr}`;
-
-  if (combined.length <= maxLength) {
-    return combined;
-  }
-
-  const availableForName = Math.max(1, maxLength - formatStr.length - 3);
-  return `${name.substring(0, availableForName)}...${formatStr}`;
-};
+import { getCookie, setCookie } from 'utils/cookies';
+import { formatDeckLabel } from 'utils/formatUtils';
 
 type CreateGameProps = {
   inUnifiedPanel?: boolean;
@@ -1165,9 +1130,7 @@ const CreateGame = ({ inUnifiedPanel = false }: CreateGameProps) => {
                       {t('MENU.CREATE_GAME.GAME_DESCRIPTIONS.QUICK')}
                     </option>
                     <option value="Looking for advice/coaching">
-                      {t(
-                        'MENU.CREATE_GAME.GAME_DESCRIPTIONS.ADVICE_COACHING'
-                      )}
+                      {t('MENU.CREATE_GAME.GAME_DESCRIPTIONS.ADVICE_COACHING')}
                     </option>
                     <option value="New player learning the game">
                       {t('MENU.CREATE_GAME.GAME_DESCRIPTIONS.NEW_PLAYER')}
@@ -1182,8 +1145,9 @@ const CreateGame = ({ inUnifiedPanel = false }: CreateGameProps) => {
                 </select>
               </label>
 
-              {gameDescription ===
-                'Looking to play against a specific hero' && (
+              {(gameDescription === 'Looking to play against a specific hero' ||
+                gameDescription ===
+                  'No interest in playing against specific hero') && (
                 <div className={styles.heroSelection}>
                   <div className={styles.heroSelectionHeader}>
                     <label>
@@ -1240,7 +1204,9 @@ const CreateGame = ({ inUnifiedPanel = false }: CreateGameProps) => {
                         </label>
                       ))}
                   </div>
-                  {selectedHeroes.length > 0 &&
+                  {gameDescription ===
+                    'Looking to play against a specific hero' &&
+                    selectedHeroes.length > 0 &&
                     hasOscilioHero(selectedHeroes) && (
                       <label className={styles.oscilioVariant}>
                         {t(
@@ -1270,78 +1236,22 @@ const CreateGame = ({ inUnifiedPanel = false }: CreateGameProps) => {
                     )}
                   {selectedHeroes.length > 0 && (
                     <div className={styles.selectedHeroesPreview}>
-                      {t(
-                        'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.PREVIEW'
+                      {gameDescription ===
+                      'Looking to play against a specific hero' ? (
+                        <>
+                          {t(
+                            'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.PREVIEW'
+                          )}
+                          {formatSelectedHeroes(selectedHeroes, oscilioVariant)}
+                        </>
+                      ) : (
+                        <>
+                          {t(
+                            'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.PREVIEW_NOT'
+                          )}
+                          {selectedHeroes.join(', ')}
+                        </>
                       )}
-                      {formatSelectedHeroes(selectedHeroes, oscilioVariant)}
-                    </div>
-                  )}
-                </div>
-              )}
-              {gameDescription ===
-                'No interest in playing against specific hero' && (
-                <div className={styles.heroSelection}>
-                  <div className={styles.heroSelectionHeader}>
-                    <label>
-                      {t(
-                        'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.SELECT_HEROES',
-                        { amount: '3' }
-                      )}
-                    </label>
-                    {selectedHeroes.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={clearSelections}
-                        className={styles.clearSelectionLink}
-                      >
-                        {t(
-                          'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.CLEAR'
-                        )}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder={t(
-                      'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.SEARCH_HEROES_PLACEHOLDER'
-                    )}
-                    value={heroSearch}
-                    onChange={(e) => setHeroSearch(e.target.value)}
-                    className={styles.searchInput}
-                    aria-label={t(
-                      'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.SEARCH_HEROES'
-                    )}
-                  />
-                  <div className={styles.heroCheckboxes}>
-                    {uniqueHeroes
-                      .filter((heroName) =>
-                        heroName
-                          .toLowerCase()
-                          .includes(heroSearch.toLowerCase())
-                      )
-                      .map((heroName) => (
-                        <label key={heroName} className={styles.heroCheckbox}>
-                          <input
-                            type="checkbox"
-                            checked={selectedHeroes.includes(heroName)}
-                            onChange={(e) =>
-                              handleHeroSelection(heroName, e.target.checked)
-                            }
-                            disabled={
-                              !selectedHeroes.includes(heroName) &&
-                              selectedHeroes.length >= 3
-                            }
-                          />
-                          {heroName}
-                        </label>
-                      ))}
-                  </div>
-                  {selectedHeroes.length > 0 && (
-                    <div className={styles.selectedHeroesPreview}>
-                      {t(
-                        'MENU.CREATE_GAME.GAME_DESCRIPTIONS.HERO_SELECT.PREVIEW_NOT'
-                      )}
-                      {selectedHeroes.join(', ')}
                     </div>
                   )}
                 </div>

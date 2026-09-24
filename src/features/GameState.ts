@@ -75,6 +75,9 @@ export default interface GameState {
       topCards?: Card[];
       bottomCards?: Card[];
       customInput?: string;
+      sourceCard?: string;
+      deckTopCard?: string;
+      deckTopIsOpponent?: boolean;
     };
     multiChooseText?: {
       submitLink?: string;
@@ -90,6 +93,7 @@ export default interface GameState {
       mode: number;
       maxNo: number;
       minNo?: number;
+      defaultChecked?: number[];
     };
   };
   playerPreferences?: {

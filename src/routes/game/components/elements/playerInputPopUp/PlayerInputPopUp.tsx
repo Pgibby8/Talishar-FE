@@ -25,11 +25,14 @@ import {
 import { NumberInput } from './components/NumberInput';
 import { FormProps } from './playerInputPopupTypes';
 import { OtherInput } from './components/OtherInput';
+import { PromptCards } from './components/PromptCards';
+import { PROMPT_CARD_POPUPS } from './constants';
 import { parseHtmlToReactElements } from 'utils/ParseEscapedString';
 import classNames from 'classnames';
 import GameState from 'features/GameState';
 import { Card } from 'features/Card';
 import { subcardOverflowStyle } from './subcardOverflow';
+import { popupCardDisplayOrder } from './sortPopupCards';
 
 type MultiChooseOption = NonNullable<
   NonNullable<GameState['playerInputPopUp']>['multiChooseText']
@@ -60,6 +63,9 @@ export default function PlayerInputPopUp() {
   const hasGameEnded = useAppSelector(
     (state: RootState) => state.game.hasGameEnded
   );
+  const turnPhase = useAppSelector(
+    (state: RootState) => state.game.turnPhase?.turnPhase ?? ''
+  );
 
   const [checkedState, setCheckedState] = useState(
     new Array(inputPopUp?.multiChooseText?.length).fill(false)
@@ -69,6 +75,7 @@ export default function PlayerInputPopUp() {
   const storedInputOffset =
     parseFloat(localStorage.getItem(PLAYER_INPUT_STORAGE_KEY) ?? '') || 0;
   const yOffsetMV = useMotionValue(storedInputOffset);
+  const popupHeightMV = useMotionValue(0);
   const dragStartYRef = useRef(0);
   const dragStartOffsetRef = useRef(storedInputOffset);
   const currentDragOffsetRef = useRef(storedInputOffset);
@@ -177,6 +184,9 @@ export default function PlayerInputPopUp() {
         }
       );
     }
+    inputPopUp?.formOptions?.defaultChecked?.forEach((index) => {
+      if (index >= 0 && index < checkBoxLength) initialState[index] = true;
+    });
 
     setCheckedState(initialState);
   }, [inputPopUp]);
@@ -185,21 +195,38 @@ export default function PlayerInputPopUp() {
     dispatch(submitButton({ button: { mode: PROCESS_INPUT.PASS } }));
   };
 
-  const onClickButton = (button: Button) => {
-    dispatch(submitButton({ button: button }));
-  };
+  const onClickButton = useCallback(
+    (button: Button) => {
+      dispatch(submitButton({ button: button }));
+    },
+    [dispatch]
+  );
+
+  const popupActive = !!showModal && !!inputPopUp?.active;
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!popupActive || !element) return;
+    const observer = new ResizeObserver(() =>
+      popupHeightMV.set(element.offsetHeight)
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [popupActive, popupHeightMV]);
 
   const basePct = inputPopUp?.popup?.id === 'NEWOPT' ? '40%' : '52.5%';
   basePctRef.current = basePct;
   const topStyle = useTransform(
-    yOffsetMV,
-    (v) => `calc(${basePctRef.current} + ${v}dvh)`
+    [yOffsetMV, popupHeightMV],
+    ([offset, height]: number[]) =>
+      `max(1dvh, calc(min(${basePctRef.current}, 100dvh - ${height}px - var(--popup-bottom-clearance, 2dvh)) + ${offset}dvh))`
   );
   const popupId = inputPopUp?.popup?.id || '';
   const popupCards = inputPopUp?.popup?.cards;
   const usesOtherInput = !PlayerInputFormTypeMap[popupId];
   const popupCardCount = popupCards?.length ?? 0;
   const showCardSearch = usesOtherInput && popupCardCount >= 8;
+  const showPromptCards =
+    popupCardCount === 0 && PROMPT_CARD_POPUPS.has(popupId);
   const { cardListKey, normalizedCardText } = useMemo(() => {
     let nextCardListKey = '';
     const nextNormalizedCardText: string[] = [];
@@ -219,6 +246,10 @@ export default function PlayerInputPopUp() {
       normalizedCardText: nextNormalizedCardText
     };
   }, [popupCards]);
+  const displayOrder = useMemo(
+    () => popupCardDisplayOrder(popupCards, turnPhase),
+    [popupCards, turnPhase]
+  );
   const filteredCardEntries = useMemo(() => {
     const cards: Card[] = [];
     const originalIndexes: number[] = [];
@@ -227,11 +258,7 @@ export default function PlayerInputPopUp() {
     const normalizedSearch = showCardSearch
       ? cardSearch.trim().toLocaleLowerCase()
       : '';
-    for (
-      let originalIndex = 0;
-      originalIndex < popupCards.length;
-      originalIndex += 1
-    ) {
+    for (const originalIndex of displayOrder) {
       const card = popupCards[originalIndex];
       if (
         normalizedSearch &&
@@ -244,7 +271,13 @@ export default function PlayerInputPopUp() {
     }
 
     return { cards, originalIndexes };
-  }, [popupCards, normalizedCardText, cardSearch, showCardSearch]);
+  }, [
+    popupCards,
+    displayOrder,
+    normalizedCardText,
+    cardSearch,
+    showCardSearch
+  ]);
 
   useEffect(() => {
     setCardSearch('');
@@ -353,7 +386,11 @@ export default function PlayerInputPopUp() {
         inputPopUp.popup?.id === 'NEWOPT'
           ? styles.optOptionsContainer
           : styles.optionsContainer,
-        { [styles.aboveEndGameScreen]: hasGameEnded }
+        {
+          [styles.aboveEndGameScreen]: hasGameEnded,
+          [styles.cardListPopup]: usesOtherInput && popupCardCount > 0,
+          [styles.hasSubmit]: !!inputPopUp.formOptions
+        }
       )}
     >
       <div
@@ -397,7 +434,11 @@ export default function PlayerInputPopUp() {
             </button>
           ) : null}
         </div>
-        <div className={styles.contentContainer}>
+        <div
+          className={classNames(styles.contentContainer, {
+            [styles.hasPromptCards]: showPromptCards
+          })}
+        >
           {showCardSearch &&
           cardSearch &&
           filteredCardEntries.cards.length === 0 ? (
@@ -421,6 +462,14 @@ export default function PlayerInputPopUp() {
             checkboxes={checkboxes}
             checkBoxSubmit={checkBoxSubmit}
           />
+          {showPromptCards ? (
+            <PromptCards
+              title={inputPopUp.popup?.title ?? ''}
+              sourceCard={inputPopUp.popup?.sourceCard}
+              deckTopCard={inputPopUp.popup?.deckTopCard}
+              deckTopIsOpponent={inputPopUp.popup?.deckTopIsOpponent}
+            />
+          ) : null}
         </div>
       </div>
       <div

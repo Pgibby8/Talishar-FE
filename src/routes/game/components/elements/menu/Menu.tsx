@@ -5,7 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from 'app/Hooks';
 import { submitButton, setSpectatorCameraView } from 'features/game/GameSlice';
 import { GiExpand } from 'react-icons/gi';
-import { FaUndo, FaEllipsisH, FaExchangeAlt, FaWrench } from 'react-icons/fa';
+import {
+  FaUndo,
+  FaEllipsisH,
+  FaExchangeAlt,
+  FaWrench,
+  FaRedoAlt
+} from 'react-icons/fa';
 import styles from './Menu.module.css';
 import { DEFAULT_SHORTCUTS, PROCESS_INPUT } from 'appConstants';
 import HideModalsToggle from './HideModalsToggle/HideModalsToggle';
@@ -24,8 +30,7 @@ import {
 } from 'contexts/ButtonDisableContext';
 import { RootState } from 'app/Store';
 import { usePanelContext } from '../../leftColumn/PanelContext';
-import useSetting from 'hooks/useSetting';
-import { MANUAL_MODE } from 'features/options/constants';
+import { useCanUseManualMode, useIsPrivateGame } from 'hooks/useManualMode';
 import { useMediaQuery } from 'hooks/useMediaQuery';
 
 function FullScreenButton() {
@@ -83,6 +88,33 @@ function UndoButton() {
   );
 }
 
+function RestartPuzzleButton() {
+  const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  const { isDisabled, triggerDisable } = useButtonDisableContext();
+
+  const clickRestart = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.currentTarget.blur();
+    triggerDisable();
+    dispatch(submitButton({ button: { mode: PROCESS_INPUT.RESTART_PUZZLE } }));
+  };
+  return (
+    <div>
+      <button
+        className={styles.btn}
+        aria-label={t('MENU.RESTART_PUZZLE')}
+        onClick={clickRestart}
+        data-tooltip={t('MENU.RESTART_PUZZLE')}
+        data-placement="bottom"
+        disabled={isDisabled}
+      >
+        <FaRedoAlt aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
 function CameraSwitchButton() {
   const dispatch = useAppDispatch();
   const spectatorCameraView = useAppSelector(
@@ -111,15 +143,9 @@ function MobileOverflowMenu({ isSpectator }: { isSpectator: boolean }) {
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const btnRef = useRef<HTMLButtonElement>(null);
   const { setIsManualModeOpen, isManualModeOpen } = usePanelContext();
-  const isManualMode = useSetting({ settingName: MANUAL_MODE })?.value === '1';
-  const isLocalEnvironment =
-    import.meta.env.MODE === 'development' ||
-    window.location.hostname === 'localhost';
-  const isOpponentAI = useAppSelector(
-    (state: RootState) => state.game.gameInfo.isOpponentAI ?? false
-  );
-  const showManualMode =
-    !isSpectator && (isLocalEnvironment || isManualMode || isOpponentAI);
+  const canUseManualMode = useCanUseManualMode();
+  const isPrivateGame = useIsPrivateGame();
+  const showManualMode = !isSpectator && canUseManualMode && !isPrivateGame;
 
   const toggleFullScreen = () => {
     screenfull.toggle();
@@ -201,6 +227,9 @@ function MenuContent() {
   const isReplay = useAppSelector(
     (state: RootState) => state.game.gameInfo.isReplay
   );
+  const isPuzzle = useAppSelector(
+    (state: RootState) => state.game.gameInfo.isPuzzle
+  );
   const isSpectator = playerID === 3;
 
   // Replay controls are provided by the replay panel and Advance replay button.
@@ -259,6 +288,7 @@ function MenuContent() {
               placement="bottom"
             />
             <UndoButton />
+            {isPuzzle && <RestartPuzzleButton />}
             <HideModalsToggle />
             <ShowMobileChat />
             <MobileOverflowMenu isSpectator={false} />
@@ -278,6 +308,7 @@ function MenuContent() {
         </div>
         <div className={styles.menuList}>
           <UndoButton />
+          {isPuzzle && <RestartPuzzleButton />}
           <Inventory buttonClassName={styles.btn} />
           <HideModalsToggle />
           <OptionsMenuToggle />
