@@ -25,6 +25,8 @@ const InitialGameState: GameState = {
   clashRevealP1Card: '',
   clashRevealP2Card: '',
   clashRevealTrigger: 0,
+  deckPeekCard: '',
+  deckPeekTrigger: 0,
   heroTransformP1Card: '',
   heroTransformP2Card: '',
   heroTransformTrigger: 0,
@@ -49,7 +51,8 @@ const InitialGameState: GameState = {
   },
   aiHasInfiniteHP: false,
   practiceDummyWeaponPower: 4,
-  spectatorCameraView: 1
+  spectatorCameraView: 1,
+  replayHideOpponentHand: false
 };
 
 export const OfflineTestingGameState: GameState = {
@@ -349,6 +352,8 @@ export const OfflineTestingGameState: GameState = {
   clashRevealP1Card: '',
   clashRevealP2Card: '',
   clashRevealTrigger: 0,
+  deckPeekCard: '',
+  deckPeekTrigger: 0,
   heroTransformP1Card: '',
   heroTransformP2Card: '',
   heroTransformTrigger: 0,

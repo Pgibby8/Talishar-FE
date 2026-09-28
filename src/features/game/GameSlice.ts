@@ -773,6 +773,9 @@ export const gameSlice = createSlice({
     setSpectatorCameraView: (state, action: PayloadAction<number>) => {
       state.spectatorCameraView = action.payload;
     },
+    setReplayHideOpponentHand: (state, action: PayloadAction<boolean>) => {
+      state.replayHideOpponentHand = action.payload;
+    },
     removeCardFromHand: (state, action: PayloadAction<{ card: Card }>) => {
       state.playerOne.Hand = state.playerOne?.Hand?.filter(
         (cardObj) =>
@@ -885,6 +888,10 @@ export const gameSlice = createSlice({
       state.addBotDeckCard = action.payload.cardNumber;
     },
     setClashReveal: createRevealReducer('clashReveal'),
+    setDeckPeek: (state, action: PayloadAction<string>) => {
+      state.deckPeekCard = action.payload;
+      if (action.payload) state.deckPeekTrigger += 1;
+    },
     setHeroTransform: createRevealReducer('heroTransform'),
     setArsenalFlip: createRevealReducer('arsenalFlip'),
     setArsenalDestroy: createRevealReducer('arsenalDestroy'),
@@ -1118,6 +1125,7 @@ export const {
   setShuffling,
   setAddBotDeck,
   setClashReveal,
+  setDeckPeek,
   setHeroTransform,
   setArsenalFlip,
   setArsenalDestroy,
@@ -1133,6 +1141,7 @@ export const {
   addActionPointPopup,
   removeActionPointPopup,
   setSpectatorCameraView,
+  setReplayHideOpponentHand,
   receiveGameState
 } = actions;
 

@@ -140,6 +140,8 @@ export default interface GameState {
   clashRevealP1Card: string;
   clashRevealP2Card: string;
   clashRevealTrigger: number;
+  deckPeekCard: string;
+  deckPeekTrigger: number;
   heroTransformP1Card: string;
   heroTransformP2Card: string;
   heroTransformTrigger: number;
@@ -169,4 +171,5 @@ export default interface GameState {
   gameDeleteDeadline?: number; // Absolute server timestamp (ms) at which an idle game may be deleted.
   serverTimeOffset?: number; // Server clock minus local clock (ms)
   spectatorCameraView?: number; // 1 for player 1 view, 2 for player 2 view
+  replayHideOpponentHand?: boolean;
 }
