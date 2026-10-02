@@ -94,10 +94,14 @@ import {
   SearchUsernamesResponse,
   PromptStatsRange,
   PromptStatsResponse,
-  PuzzleCandidatesRequest,
+  AdReportRange,
+  AdReportResponse,
+  ClearPromptStatsResponse,
   PuzzleCandidatesResponse,
   CreatePuzzleGameRequest,
-  CreatePuzzleGameResponse
+  CreatePuzzleGameResponse,
+  VerifyPuzzleCandidateRequest,
+  VerifyPuzzleCandidateResponse
 } from 'interface/API/ModPageAPI';
 import { FriendListAPIResponse } from 'interface/API/FriendListAPI.php';
 import {
@@ -240,7 +244,8 @@ export const apiSlice = createApi({
     'Auth',
     'SystemMessage',
     'SavedReplays',
-    'HeroMastery'
+    'HeroMastery',
+    'PromptStats'
   ],
   refetchOnFocus: false,
   refetchOnReconnect: false,
@@ -703,19 +708,25 @@ export const apiSlice = createApi({
         method: 'GET',
         params: { days },
         responseHandler: parseResponse
+      }),
+      providesTags: ['PromptStats']
+    }),
+    getAdReport: builder.query<AdReportResponse, AdReportRange>({
+      query: (days) => ({
+        url: URL_END_POINT.GET_MONETIZATION_REPORT,
+        method: 'GET',
+        params: { days },
+        responseHandler: parseResponse
       })
     }),
-    getPuzzleCandidates: builder.query<
-      PuzzleCandidatesResponse,
-      PuzzleCandidatesRequest
-    >({
-      query: ({ emptyOpponentHand, raiseLife }) => ({
+    clearPromptStats: builder.mutation<ClearPromptStatsResponse, void>({
+      query: () => postJson(URL_END_POINT.CLEAR_PROMPT_STATS),
+      invalidatesTags: ['PromptStats']
+    }),
+    getPuzzleCandidates: builder.query<PuzzleCandidatesResponse, void>({
+      query: () => ({
         url: URL_END_POINT.GET_PUZZLE_CANDIDATES,
         method: 'GET',
-        params: {
-          emptyOpponentHand: emptyOpponentHand ? 1 : 0,
-          raiseLife: raiseLife ? 1 : 0
-        },
         responseHandler: parseResponse
       })
     }),
@@ -724,6 +735,12 @@ export const apiSlice = createApi({
       CreatePuzzleGameRequest
     >({
       query: (body) => postJson(URL_END_POINT.CREATE_PUZZLE_GAME, body)
+    }),
+    verifyPuzzleCandidate: builder.mutation<
+      VerifyPuzzleCandidateResponse,
+      VerifyPuzzleCandidateRequest
+    >({
+      query: (body) => postJson(URL_END_POINT.VERIFY_PUZZLE_CANDIDATES, body)
     }),
     resetAllRustCounters: builder.mutation<ResetAllRustCountersResponse, void>({
       query: () => ({
@@ -1100,8 +1117,11 @@ export const {
   useKickPlayerMutation,
   useGetModPageDataQuery,
   useGetPromptStatsQuery,
+  useClearPromptStatsMutation,
+  useGetAdReportQuery,
   useGetPuzzleCandidatesQuery,
   useCreatePuzzleGameMutation,
+  useVerifyPuzzleCandidateMutation,
   useResetAllRustCountersMutation,
   useBanPlayerByIPMutation,
   useBanIPDirectMutation,

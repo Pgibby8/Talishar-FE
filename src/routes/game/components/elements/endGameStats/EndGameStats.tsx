@@ -2,7 +2,8 @@ import { Card } from 'features/Card';
 import { Effect } from '../effects/Effects';
 import styles from './EndGameStats.module.css';
 import useSupporterStatus from 'hooks/useSupporterStatus';
-import { AdUnit } from 'components/ads';
+import { AdUnit } from 'components/ads/AdUnit';
+import { HelpTooltip } from 'components/Tooltip/HelpTooltip';
 import {
   ReactNode,
   useState,
@@ -80,6 +81,7 @@ type TurnSortField =
   | 'damageTaken'
   | 'lifeGained'
   | 'lifeLost'
+  | 'cardsDisrupted'
   | 'totalValue';
 
 interface SortState<TField extends string> {
@@ -187,7 +189,9 @@ const AGGREGATE_STAT_KEYS = [
   'averageResourcesUsedPerTurn',
   'averageCardsLeftOverPerTurn',
   'averageCombatValuePerTurn',
-  'averageValuePerTurn'
+  'averageValuePerTurn',
+  'totalCardsDisrupted',
+  'averageValueWithDisruptionPerTurn'
 ] as const;
 
 type AggregateStatKey = (typeof AGGREGATE_STAT_KEYS)[number];
@@ -221,6 +225,7 @@ export interface EndGameData extends AggregateStats {
   startingLife?: number;
   opponentStartingLife?: number;
   contractsCompleted?: number;
+  disruptionValuePerCard?: number;
 }
 
 export interface CardResult {
@@ -253,10 +258,19 @@ export interface TurnResult {
   resourcesLeft: number;
   lifeGained: number;
   lifeLost: number;
+  cardsDisrupted?: number;
   lifeAtTurnEnd?: number | null;
   opponentLifeAtTurnEnd?: number | null;
   turnNo?: number;
 }
+
+const getTurnValue = (turn: TurnResult, disruptionValue = 0) =>
+  (+turn.damageThreatened || 0) +
+  (+turn.damageBlocked || 0) +
+  (+turn.damagePrevented || 0) +
+  (+turn.lifeGained || 0) +
+  (+turn.lifeLost || 0) +
+  disruptionValue * (+(turn.cardsDisrupted ?? 0) || 0);
 
 export interface EndGameStatsRef {
   exportScreenshot: () => Promise<void>;
@@ -639,12 +653,19 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
     }>({});
     const [excludeLastTurn, setExcludeLastTurn] = useState(false);
     const [excludeTurnZero, setExcludeTurnZero] = useState(true);
+    const [includeDisruption, setIncludeDisruption] = useState(false);
+    const disruptionValue = includeDisruption
+      ? data.disruptionValuePerCard ?? 0
+      : 0;
     const [hoveredChartTurn, setHoveredChartTurn] = useState<number | null>(
       null
     );
     const [isExportingImage, setIsExportingImage] = useState(false);
 
     const { t } = useTranslation();
+    const disruptionTooltip = t('END_GAME.INCLUDE_DISRUPTION_TOOLTIP', {
+      value: data.disruptionValuePerCard ?? 0
+    });
 
     const { currentTheme } = useTheme();
     const themeColor = currentTheme.colors.primary;
@@ -752,12 +773,7 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
       let opponentLife = opponentStartingLife;
 
       return entries.map(({ turnNo, turn }) => {
-        const turnValue =
-          (+turn.damageThreatened || 0) +
-          (+turn.damageBlocked || 0) +
-          (+turn.damagePrevented || 0) +
-          (+turn.lifeGained || 0) +
-          (+turn.lifeLost || 0);
+        const turnValue = getTurnValue(turn, disruptionValue);
         const turnDealt = parseInt(String(turn.damageDealt), 10) || 0;
 
         if (turn.lifeAtTurnEnd != null) {
@@ -794,7 +810,8 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
       data.opponentStartingLife,
       data.playerID,
       data.bothPlayersData,
-      excludeTurnZero
+      excludeTurnZero,
+      disruptionValue
     ]);
 
     const filteredChartData = useMemo(() => {
@@ -1201,12 +1218,7 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
             const playerTurnResults = playerData.turnResults;
             Object.keys(playerTurnResults).forEach((key, ix) => {
               const turn = playerTurnResults[key];
-              const totalValue =
-                +turn.damageThreatened +
-                +turn.damageBlocked +
-                +turn.damagePrevented +
-                +turn.lifeGained +
-                +turn.lifeLost;
+              const totalValue = getTurnValue(turn);
               content += `${ix + 1},${turn.cardsUsed},${turn.cardsBlocked},${
                 turn.cardsPitched
               },${turn.cardsDiscarded},${turn.cardsLeft},`;
@@ -1387,18 +1399,8 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
           aValue = a.turnNo;
           bValue = b.turnNo;
         } else if (sortBy === 'totalValue') {
-          aValue =
-            (+a.damageThreatened || 0) +
-            (+a.damageBlocked || 0) +
-            (+a.damagePrevented || 0) +
-            (+a.lifeGained || 0) +
-            (+a.lifeLost || 0);
-          bValue =
-            (+b.damageThreatened || 0) +
-            (+b.damageBlocked || 0) +
-            (+b.damagePrevented || 0) +
-            (+b.lifeGained || 0) +
-            (+b.lifeLost || 0);
+          aValue = getTurnValue(a, disruptionValue);
+          bValue = getTurnValue(b, disruptionValue);
         } else {
           aValue = a[sortBy] || 0;
           bValue = b[sortBy] || 0;
@@ -1414,7 +1416,8 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
       data.turnResults,
       turnSort.field,
       turnSort.direction,
-      excludeTurnZero
+      excludeTurnZero,
+      disruptionValue
     ]);
 
     // Helper function to check if columns should be hidden - We hide those 3 collumns for irrelevant heroes
@@ -1639,23 +1642,52 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                       {t('END_GAME.EXCLUDE_LAST_TURN')}
                     </span>
                   </label>
+                  {data.disruptionValuePerCard !== undefined && (
+                    <span className={styles.disruptionControl}>
+                      <label className={styles.excludeLastTurnLabel}>
+                        <input
+                          type="checkbox"
+                          checked={includeDisruption}
+                          onChange={(e) => setIncludeDisruption(e.target.checked)}
+                          className={styles.excludeLastTurnCheckbox}
+                        />
+                        <span className={styles.excludeLastTurnText}>
+                          {t('END_GAME.INCLUDE_DISRUPTION')}
+                        </span>
+                      </label>
+                      <HelpTooltip
+                        text={disruptionTooltip}
+                        placement="bottom"
+                      />
+                    </span>
+                  )}
                 </div>
 
                 {/* Avg Value per Turn - Top Priority */}
                 <div className={styles.infoRow}>
                   <span className={styles.infoLabel}>
                     {t('END_GAME.AVG_VALUE_PER_TURN')}
-                    <span
-                      className={styles.tooltipIcon}
-                      data-tooltip={t('END_GAME.AVG_VALUE_PER_TURN_TOOLTIP')}
-                    >
-                      ?
-                    </span>
+                    <HelpTooltip
+                      text={t('END_GAME.AVG_VALUE_PER_TURN_TOOLTIP')}
+                    />
                   </span>
                   <span className={styles.infoValue}>
-                    {stats.averageValuePerTurn}
+                    {includeDisruption
+                      ? stats.averageValueWithDisruptionPerTurn
+                      : stats.averageValuePerTurn}
                   </span>
                 </div>
+
+                {includeDisruption && (
+                  <div className={styles.infoRow}>
+                    <span className={styles.infoLabel}>
+                      {t('END_GAME.TOTAL_CARDS_DISRUPTED')}
+                    </span>
+                    <span className={styles.infoValue}>
+                      {stats.totalCardsDisrupted ?? 0}
+                    </span>
+                  </div>
+                )}
 
                 {/* Other Average Values */}
                 <div className={styles.infoRow}>
@@ -1737,14 +1769,9 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                   <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>
                       {t('END_GAME.TOTAL_DAMAGE_PREVENTED')}
-                      <span
-                        className={styles.tooltipIcon}
-                        data-tooltip={t(
-                          'END_GAME.TOTAL_DAMAGE_PREVENTED_TOOLTIP'
-                        )}
-                      >
-                        ?
-                      </span>
+                      <HelpTooltip
+                        text={t('END_GAME.TOTAL_DAMAGE_PREVENTED_TOOLTIP')}
+                      />
                     </span>
                     <span className={styles.infoValue}>
                       {stats.totalDamagePrevented}
@@ -2245,14 +2272,11 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
 
           {/* Turn by Turn Breakdown - Full Width Section */}
           <div className={styles.turnBreakdownSection}>
-            <h2 className={styles.sectionHeader}>
+            <h2
+              className={`${styles.sectionHeader} ${styles.sectionHeaderWithHelp}`}
+            >
               {t('END_GAME.TURN_BY_TURN_BREAKDOWN')}
-              <span
-                className={styles.tooltipIconBreakdown}
-                data-tooltip={t('END_GAME.TURN_BREAKDOWN_TOOLTIP')}
-              >
-                ?
-              </span>
+              <HelpTooltip text={t('END_GAME.TURN_BREAKDOWN_TOOLTIP')} />
             </h2>
             <ScrollableTable>
               <table className={styles.cardTable}>
@@ -2289,7 +2313,10 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                         {t('END_GAME.LIFE')}
                       </th>
                     )}
-                    <th colSpan={1} className={styles.headersStats}>
+                    <th
+                      colSpan={includeDisruption ? 2 : 1}
+                      className={styles.headersStats}
+                    >
                       {t('END_GAME.VALUE')}
                     </th>
                   </tr>
@@ -2407,6 +2434,15 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                         title={t('END_GAME.CLICK_TO_SORT')}
                       />
                     )}
+                    {includeDisruption && (
+                      <SortHeader
+                        field="cardsDisrupted"
+                        label={t('END_GAME.DISRUPTION_VALUE')}
+                        sort={turnSort}
+                        className={styles.sortableHeader}
+                        title={t('END_GAME.CLICK_TO_SORT')}
+                      />
+                    )}
                     <SortHeader
                       field="totalValue"
                       label={t('END_GAME.THIS_TURN')}
@@ -2418,6 +2454,7 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                 </thead>
                 <tbody>
                   {displayedTurnResults.map((turnData, ix) => {
+                    const disruptedCards = +(turnData.cardsDisrupted ?? 0) || 0;
                     return (
                       <tr
                         key={`turnList${ix}`}
@@ -2474,14 +2511,22 @@ const EndGameStats = forwardRef<EndGameStatsRef, EndGameStatsProps>(
                             {turnData.lifeLost}
                           </td>
                         )}
+                        {includeDisruption && (
+                          <td
+                            className={`${styles.pitched} ${styles.disruptionValueCell}`}
+                          >
+                            {disruptedCards * disruptionValue}
+                            {disruptedCards > 0 && (
+                              <small className={styles.disruptedCardCount}>
+                                ({t('END_GAME.DISRUPTED_CARD_COUNT', {
+                                  count: disruptedCards
+                                })})
+                              </small>
+                            )}
+                          </td>
+                        )}
                         <td className={styles.pitched}>
-                          {(
-                            +turnData.damageThreatened +
-                            +turnData.damageBlocked +
-                            +turnData.damagePrevented +
-                            +turnData.lifeGained +
-                            +turnData.lifeLost
-                          ).toString()}
+                          {getTurnValue(turnData, disruptionValue)}
                         </td>
                       </tr>
                     );

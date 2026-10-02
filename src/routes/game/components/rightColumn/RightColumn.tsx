@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PriorityControl from '../elements/priorityControl/PriorityControl';
 import LastPlayed from '../elements/lastPlayed/LastPlayed';
 import Menu from '../elements/menu/Menu';
@@ -11,6 +11,18 @@ import { useAppSelector } from 'app/Hooks';
 import { RootState } from 'app/Store';
 import PlayerName from '../elements/playerName/PlayerName';
 import { useMediaQuery } from 'hooks/useMediaQuery';
+import useSupporterStatus from 'hooks/useSupporterStatus';
+import {
+  IN_GAME_AD_MIN_VIEWPORT_HEIGHT,
+  IN_GAME_AD_SIZE,
+  IN_GAME_ADS_ENABLED
+} from 'config/ads';
+import { setInGameAdGate } from 'utils/adAnalytics';
+import InGameAd from './InGameAd';
+
+const adColumnStyle = {
+  '--in-game-ad-size': `${IN_GAME_AD_SIZE}px`
+} as React.CSSProperties;
 
 function RightColumn() {
   const isStreamerMode =
@@ -23,6 +35,18 @@ function RightColumn() {
   // branch the CSS would show is mounted; the other used to render in full
   // under `display: none`, duplicating the menu and the whole chat log.
   const isNarrow = useMediaQuery('(max-width: 1200px)');
+  const hasRoomForAd = useMediaQuery(
+    `(min-height: ${IN_GAME_AD_MIN_VIEWPORT_HEIGHT}px)`
+  );
+  const { showAds } = useSupporterStatus();
+  const showInGameAd = IN_GAME_ADS_ENABLED && showAds && hasRoomForAd;
+  const inGameAdGate = isNarrow ? 'narrow' : hasRoomForAd ? 'ok' : 'short';
+
+  useEffect(() => {
+    if (!IN_GAME_ADS_ENABLED || !showAds) return;
+    setInGameAdGate(inGameAdGate);
+    return () => setInGameAdGate(null);
+  }, [inGameAdGate, showAds]);
 
   if (isNarrow) {
     return (
@@ -40,7 +64,14 @@ function RightColumn() {
   }
 
   return (
-    <div className={styles.rightColumn}>
+    <div
+      className={
+        showInGameAd
+          ? `${styles.rightColumn} ${styles.rightColumnWithAd}`
+          : styles.rightColumn
+      }
+      style={showInGameAd ? adColumnStyle : undefined}
+    >
       <div className={styles.topGroup}>
         <Menu />
         <TurnInfo />
@@ -51,6 +82,7 @@ function RightColumn() {
         {isStreamerMode ? <StreamerBox /> : ''}
         <ChatBox />
       </div>
+      {showInGameAd && <InGameAd />}
     </div>
   );
 }

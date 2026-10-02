@@ -267,6 +267,10 @@
     "DEALT": "Traité",
     "DEFEAT": "Défaite",
     "DISCARDED": "Écarté",
+    "DISRUPTED": "Perturbées",
+    "DISRUPTED_CARD_COUNT_one": "{{count}} carte",
+    "DISRUPTED_CARD_COUNT_other": "{{count}} cartes",
+    "DISRUPTION_VALUE": "Perturbation",
     "EXCLUDE_LAST_TURN": "Exclure le dernier tour (statistiques et graphiques)",
     "EXCLUDE_TURN_0": "Exclure le tour 0 (statistiques et graphiques)",
     "EXPORT_AS_CSV": "Exporter au format CSV",
@@ -276,6 +280,8 @@
     "GAME_SUMMARY": "Résumé du jeu",
     "HERO_MATCHUP": "Match de héros",
     "HIDE_STATS": "Masquer les statistiques",
+    "INCLUDE_DISRUPTION": "Compter la perturbation dans la valeur",
+    "INCLUDE_DISRUPTION_TOOLTIP": "Ajoute {{value}} de valeur pour chaque carte adverse retirée par vos effets : défaussée de sa main, bannie de sa main ou de son arsenal, détruite dans son arsenal, une carte en défense détruite hors de la chaîne de combat, ou un équipement, une arme, un objet, un allié ou une aura détruit ou banni par vous. Les jetons, l'intimidation, les cartes qu'il peut encore jouer depuis le bannissement et les cartes utilisées par l'adversaire lui-même (blocage, prévention de dégâts) ne comptent pas.",
     "LEFT": "Gauche",
     "LIFE": "Vie",
     "LIFE_GAINED": "Vie gagnée",
@@ -315,6 +321,7 @@
     "TIMES_CHARGED": "Temps facturés",
     "TIMES_HIT": "Temps frappés",
     "TIMES_KATSU_DISCARDED": "Nombre de fois où Katsu a été abandonné",
+    "TOTAL_CARDS_DISRUPTED": "Total des cartes perturbées :",
     "TOTAL_DAMAGE_BLOCKED": "Dégâts totaux bloqués :",
     "TOTAL_DAMAGE_DEALT": "Dégâts totaux infligés :",
     "TOTAL_DAMAGE_PREVENTED": "Total des dégâts évités :",
@@ -341,6 +348,9 @@
     "YOU_TOOK": "Vous avez pris"
   },
   "ERROR_PAGE": {
+    "BLOCKED_ASSET_INSTRUCTION": "Désactivez les bloqueurs de publicités ou de contenu pour talishar.net, ou essayez sans VPN ni Relais privé iCloud. Si le problème persiste, envoyez-nous l'erreur ci-dessous.",
+    "BLOCKED_ASSET_MESSAGE": "Quelque chose entre votre navigateur et Talishar bloque l'un de ses fichiers, une actualisation ne suffira donc pas.",
+    "BLOCKED_ASSET_TITLE": "Une partie de Talishar n'a pas pu se charger",
     "HOME": "Maison",
     "MAC": "Mac",
     "MESSAGE": "Désolé, une erreur s'est produite.",
@@ -977,6 +987,7 @@
         "BEST_DECK": "À la recherche du meilleur deck du format",
         "CASUAL": "Jeu détendu / casual",
         "CONTROL": "Préfère les decks lents (contrôle)",
+        "EXPERIENCED": "Jeu entre joueurs expérimentés",
         "DEFAULT": "Partie par défaut #",
         "HERO_SELECT": {
           "CLEAR": "Effacer la sélection",
@@ -1218,6 +1229,10 @@
     "REPLAY": "Rejouer",
     "TITLE": "{{subtitle}} - priorité de passage - Espace",
     "WAIT": "ATTENDEZ"
+  },
+  "PERMANENTS_ZONE": {
+    "SCROLL_LEFT": "Faire défiler les permanents vers la gauche",
+    "SCROLL_RIGHT": "Faire défiler les permanents vers la droite"
   },
   "PLAY": {
     "ADVANCE_REPLAY": "Relecture avancée"
@@ -1701,6 +1716,10 @@
     "WHITELIST_SELECTED_one": "Liste blanche sélectionnée ({{count}})",
     "WHITELIST_SELECTED_other": "Liste blanche sélectionnée ({{count}})",
     "WHITELIST_USER_TITLE": "Ajouter ce nom d'utilisateur à la liste blanche"
+  },
+  "VIDEO_AD": {
+    "CLOSE": "Fermer la publicité vidéo",
+    "LABEL": "Publicité vidéo"
   },
   "ZONES": {
     "ACTIVE_LAYERS": "Calques actifs",

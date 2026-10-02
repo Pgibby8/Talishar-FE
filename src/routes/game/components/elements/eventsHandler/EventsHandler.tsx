@@ -57,7 +57,10 @@ import {
   clearEquipDestroy
 } from 'features/game/GameSlice';
 import { DESTROY_ANIMATION_DURATION } from '../destroyAnimation/DestroyAnimation';
-import { normalizeEquipSlot } from '../destroyAnimation/useEquipDestroy';
+import {
+  getBottomPlayerID,
+  normalizeEquipSlot
+} from '../destroyAnimation/useEquipDestroy';
 
 // Each destroyed slot animates independently, so every event gets its own
 // handle to clear once its animation is done.
@@ -79,7 +82,7 @@ const parseCardEvent = (
   const colonIndex = raw.indexOf(':');
   if (colonIndex === -1) return { cardNumber: raw, isPlayer: undefined };
   const eventPlayerID = parseInt(raw.slice(0, colonIndex));
-  const viewerID = viewerPlayerID === 2 ? 2 : 1;
+  const viewerID = getBottomPlayerID(viewerPlayerID);
   return {
     cardNumber: raw.slice(colonIndex + 1),
     isPlayer: Number.isNaN(eventPlayerID)
@@ -246,27 +249,15 @@ export const EventsHandler = React.memo(() => {
             continue;
           }
           case 'PEEK': {
-            const peek = parseCardEvent(event.eventValue, playerID);
-            if (!peek.isPlayer || !peek.cardNumber) continue;
-            dispatch(setDeckPeek(peek.cardNumber));
-            continue;
-          }
-          case 'GEMOFF': {
-            const [gemPlayerID, gemCardNumber] = (
+            const [viewerID, peekCardNumber, deckOwnerID] = (
               event.eventValue ?? ''
             ).split(':');
-            if (parseInt(gemPlayerID) !== playerID || !gemCardNumber) continue;
-            toast(
-              (t) => (
-                <MovementEventCard
-                  type="GEMOFF"
-                  cardNumber={gemCardNumber}
-                  isPlayer
-                  caption="Its gem turns back on at the start of the next turn."
-                  onDismiss={() => toast.dismiss(t.id)}
-                />
-              ),
-              { ...MOVEMENT_TOAST_OPTIONS, duration: 7000 }
+            if (parseInt(viewerID) !== playerID || !peekCardNumber) continue;
+            dispatch(
+              setDeckPeek({
+                cardNumber: peekCardNumber,
+                isPlayer: !deckOwnerID || parseInt(deckOwnerID) === playerID
+              })
             );
             continue;
           }

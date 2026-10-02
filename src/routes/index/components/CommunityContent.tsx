@@ -5,7 +5,7 @@ import {
   ContentVideo
 } from '../../../services/contentService';
 import { Trans, useTranslation } from 'react-i18next';
-import { AdUnit } from 'components/ads';
+import { AdUnit } from 'components/ads/AdUnit';
 import RemoveAdsLink from 'components/RemoveAdsLink/RemoveAdsLink';
 import { TALISHAR_DISCORD_URL } from 'constants/socialLinks';
 
@@ -314,7 +314,7 @@ const CommunityContent: React.FC<CommunityContentProps> = ({
             <div className={styles.adHeader}>
               <RemoveAdsLink />
             </div>
-            <AdUnit placement="billboard-1" className={styles.desktopAd} />
+            <AdUnit placement="billboard-2" className={styles.desktopAd} />
             <AdUnit placement="mobile-unit-2" className={styles.mobileAd} />
           </div>
         )}

@@ -94,6 +94,7 @@ export default interface GameState {
       maxNo: number;
       minNo?: number;
       defaultChecked?: number[];
+      groupLimits?: Record<string, number>;
     };
   };
   playerPreferences?: {
@@ -141,6 +142,7 @@ export default interface GameState {
   clashRevealP2Card: string;
   clashRevealTrigger: number;
   deckPeekCard: string;
+  deckPeekIsPlayer: boolean;
   deckPeekTrigger: number;
   heroTransformP1Card: string;
   heroTransformP2Card: string;

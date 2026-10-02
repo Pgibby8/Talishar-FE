@@ -15,7 +15,7 @@ import SystemMessageModal from 'components/SystemMessageModal/SystemMessageModal
 import useAuth from 'hooks/useAuth';
 import useSupporterStatus from 'hooks/useSupporterStatus';
 import useAdScript from 'hooks/useAdScript';
-import { AdUnit } from 'components/ads';
+import { AdUnit } from 'components/ads/AdUnit';
 import TalisharLogo from '../../img/TalisharLogo.webp';
 import { BsChevronDown, BsChevronUp } from 'react-icons/bs';
 import { TALISHAR_METAFY_URL } from 'constants/socialLinks';
@@ -35,43 +35,6 @@ const Index = () => {
     return `talishar_home_banner_hidden_v2_${currentUserName}`;
   }, [isLoggedIn, currentUserName]);
   useAdScript(showAds);
-
-  useEffect(() => {
-    if (!showAds) {
-      document
-        .querySelectorAll(
-          '[id^="reviq-"], [id^="prims_"], [id^="primis"], [class*="primis"], [data-ad="video"]'
-        )
-        .forEach((el) => el.remove());
-      return;
-    }
-
-    document
-      .querySelectorAll(
-        '[id^="reviq-"], [id^="prims_"], [id^="primis"], [class*="primis"], [data-ad="video"]'
-      )
-      .forEach((el) => el.remove());
-
-    const videoDiv = document.createElement('div');
-    videoDiv.setAttribute('data-ad', 'video');
-    document.body.appendChild(videoDiv);
-
-    const ANCHOR_SELECTOR = '[data-ad="anchor"]';
-    const hideAnchors = () => {
-      document.querySelectorAll(ANCHOR_SELECTOR).forEach((el) => {
-        (el as HTMLElement).style.display = 'none';
-      });
-    };
-    hideAnchors();
-    const observer = new MutationObserver(hideAnchors);
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
-    return () => {
-      observer.disconnect();
-    };
-  }, [showAds]);
 
   const { data: systemMessageData } = useGetSystemMessageQuery(undefined, {
     skip: !isLoggedIn

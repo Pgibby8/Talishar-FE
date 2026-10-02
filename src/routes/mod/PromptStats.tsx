@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useGetPromptStatsQuery } from 'features/api/apiSlice';
+import { toast } from 'react-hot-toast';
+import {
+  useClearPromptStatsMutation,
+  useGetPromptStatsQuery
+} from 'features/api/apiSlice';
 import { PromptStat, PromptStatsRange } from 'interface/API/ModPageAPI';
 import { CARD_SQUARES_PATH, getCollectionCardImagePath } from 'utils';
 import { useLanguageSelector } from 'hooks/useLanguageSelector';
@@ -12,9 +16,10 @@ const CANDIDATE_TOP_SHARE = 0.95;
 const CANDIDATE_OPTION_SHARE = 0.5;
 const INLINE_ANSWERS = 3;
 
-type SortKey = 'count' | 'topShare' | 'identicalShare' | 'avgMs';
+type SortKey = 'count' | 'topShare' | 'identicalShare' | 'avgMs' | 'totalMs';
 
 interface PromptRow extends PromptStat {
+  totalMs: number;
   topShare: number;
   identicalShare: number;
   reasons: string[];
@@ -27,6 +32,12 @@ const percent = (value: number) =>
 const formatAnswer = (answer: string) => answer.replace(/_/g, ' ');
 const formatSeconds = (ms: number) =>
   `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
+const formatDuration = (ms: number) => {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 1) return formatSeconds(ms);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+};
 
 const toRow = (prompt: PromptStat): PromptRow => {
   const count = Math.max(prompt.count, 1);
@@ -41,7 +52,13 @@ const toRow = (prompt: PromptStat): PromptRow => {
       reasons.push('SAME_ANSWER');
     if (identicalShare >= CANDIDATE_OPTION_SHARE) reasons.push('IDENTICAL');
   }
-  return { ...prompt, topShare, identicalShare, reasons };
+  return {
+    ...prompt,
+    totalMs: prompt.count * prompt.avgMs,
+    topShare,
+    identicalShare,
+    reasons
+  };
 };
 
 const CardCell = ({ row }: { row: PromptRow }) => {
@@ -111,10 +128,12 @@ const PromptStats: React.FC = () => {
   const [query, setQuery] = useState('');
   const [phase, setPhase] = useState('');
   const [candidatesOnly, setCandidatesOnly] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>('count');
+  const [sortKey, setSortKey] = useState<SortKey>('totalMs');
   const [sortDescending, setSortDescending] = useState(true);
 
   const { data, isFetching, isError } = useGetPromptStatsQuery(range);
+  const [clearPromptStats, { isLoading: isClearing }] =
+    useClearPromptStatsMutation();
 
   const rows = useMemo(() => (data?.prompts ?? []).map(toRow), [data]);
 
@@ -149,6 +168,24 @@ const PromptStats: React.FC = () => {
     else {
       setSortKey(key);
       setSortDescending(true);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!window.confirm(t('MOD_PAGE.PROMPTS_CONFIRM_CLEAR'))) return;
+    try {
+      const result = await clearPromptStats().unwrap();
+      toast.success(
+        t('MOD_PAGE.PROMPTS_CLEAR_SUCCESS', {
+          count: result.answersCleared,
+          answers: result.answersCleared.toLocaleString()
+        }),
+        { position: 'top-center' }
+      );
+    } catch (err: any) {
+      toast.error(err?.data?.error || t('MOD_PAGE.PROMPTS_CLEAR_FAILED'), {
+        position: 'top-center'
+      });
     }
   };
 
@@ -242,6 +279,16 @@ const PromptStats: React.FC = () => {
           />
           {t('MOD_PAGE.PROMPTS_CANDIDATES_ONLY', { total: candidateCount })}
         </label>
+        <button
+          type="button"
+          className={styles.clearButton}
+          onClick={handleClear}
+          disabled={isClearing}
+        >
+          {isClearing
+            ? t('MOD_PAGE.PROMPTS_CLEARING')
+            : t('MOD_PAGE.PROMPTS_CLEAR_ALL')}
+        </button>
       </div>
 
       {data && !isError && (
@@ -285,6 +332,7 @@ const PromptStats: React.FC = () => {
                   t('MOD_PAGE.PROMPTS_COL_IDENTICAL')
                 )}
                 {sortHeader('avgMs', t('MOD_PAGE.PROMPTS_COL_TIME'))}
+                {sortHeader('totalMs', t('MOD_PAGE.PROMPTS_COL_TOTAL'))}
               </tr>
             </thead>
             <tbody>
@@ -315,6 +363,9 @@ const PromptStats: React.FC = () => {
                     {row.identical > 0 ? percent(row.identicalShare) : '-'}
                   </td>
                   <td className={styles.numeric}>{formatSeconds(row.avgMs)}</td>
+                  <td className={styles.numeric}>
+                    {formatDuration(row.totalMs)}
+                  </td>
                 </tr>
               ))}
             </tbody>

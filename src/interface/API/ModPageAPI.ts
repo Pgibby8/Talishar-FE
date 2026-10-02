@@ -98,6 +98,11 @@ export interface PromptStatsResponse {
   error?: string;
 }
 
+export interface ClearPromptStatsResponse {
+  success: boolean;
+  answersCleared: number;
+}
+
 export interface PuzzleCard {
   id: string;
   name: string;
@@ -122,9 +127,39 @@ export interface PuzzleRealTurn {
 
 export type PuzzleDifficulty = 'easy' | 'medium' | 'hard';
 
+export interface PuzzleProof extends Partial<PuzzleRealTurn> {
+  status: 'proven' | 'failed';
+  life?: number;
+  realLife?: number;
+  reason?: string;
+}
+
 export interface PuzzleFlag {
   code: string;
   value: number;
+}
+
+export interface PuzzleStepCard {
+  id: string;
+  name: string;
+}
+
+export interface PuzzleStep {
+  kind:
+    | 'PLAY'
+    | 'PITCH'
+    | 'ACTIVATE'
+    | 'BLOCK'
+    | 'CHOOSE'
+    | 'DECLINE'
+    | 'OPT'
+    | 'ORDER';
+  cards?: PuzzleStepCard[];
+  top?: PuzzleStepCard[];
+  bottom?: PuzzleStepCard[];
+  from?: string;
+  text?: string;
+  prompt?: string;
 }
 
 export interface PuzzleCandidate {
@@ -138,8 +173,9 @@ export interface PuzzleCandidate {
   opponentHeroName: string;
   status: number;
   life: number;
+  hasLine: boolean;
   opponentLife: number;
-  lifeBonus: number;
+  realLife: number;
   hand: PuzzleCard[];
   arsenal: PuzzleCard[];
   weapons: PuzzleCard[];
@@ -153,7 +189,8 @@ export interface PuzzleCandidate {
   opponentBlock: number;
   needed: number;
   spareCards: number | null;
-  provenSlack: number | null;
+  proof: PuzzleProof | null;
+  solution: PuzzleStep[] | null;
   estimatedDamage: number;
   estimatedThrough: number;
   estimatedAttacks: number;
@@ -161,11 +198,6 @@ export interface PuzzleCandidate {
   score: number;
   difficulty: PuzzleDifficulty;
   flags: PuzzleFlag[];
-}
-
-export interface PuzzleCandidatesRequest {
-  emptyOpponentHand: boolean;
-  raiseLife: boolean;
 }
 
 export interface PuzzleCandidatesResponse {
@@ -176,14 +208,88 @@ export interface PuzzleCandidatesResponse {
 
 export interface CreatePuzzleGameRequest {
   candidateId: number;
-  emptyOpponentHand: boolean;
-  removeDecks: boolean;
-  raiseLife: boolean;
+}
+
+export interface VerifyPuzzleCandidateRequest {
+  candidateId: number;
+}
+
+export interface VerifyPuzzleCandidateResponse {
+  proof?: PuzzleProof;
+  error?: string;
 }
 
 export interface CreatePuzzleGameResponse {
   gameName: number;
   playerID: number;
   authKey: string;
+  error?: string;
+}
+
+export type AdReportRange = 1 | 7 | 30 | 90;
+export type AdDevice = 'desktop' | 'mobile';
+
+export interface AdSlotStat {
+  page: string;
+  placement: string;
+  device: AdDevice;
+  mounts: number;
+  seen: number;
+  visibleMs: number;
+  requests: number;
+  filled: number;
+  viewable: number;
+  clicks: number;
+  prebidWins: number;
+  prebidMicros: number;
+  estMicros: number;
+  pricedFills: number;
+}
+
+export interface AdPageStat {
+  page: string;
+  device: AdDevice;
+  views: number;
+  visibleMs: number;
+  adblockViews: number;
+}
+
+export interface AdBidderStat {
+  bidder: string;
+  device: AdDevice;
+  bids: number;
+  wins: number;
+  winMicros: number;
+}
+
+export interface AdDailyStat {
+  day: string;
+  device: AdDevice;
+  views: number;
+  estMicros: number;
+  unpricedFills: number;
+  displayImpressions?: number;
+  videoImpressions: number;
+  videoStarts?: number;
+  videoCompletes?: number;
+  rewardedShows: number;
+}
+
+export interface AdEventStat {
+  page: string;
+  placement: string;
+  device: AdDevice;
+  event: string;
+  count: number;
+}
+
+export interface AdReportResponse {
+  days: AdReportRange;
+  since: string;
+  slots: AdSlotStat[];
+  pages: AdPageStat[];
+  bidders: AdBidderStat[];
+  events: AdEventStat[];
+  daily: AdDailyStat[];
   error?: string;
 }

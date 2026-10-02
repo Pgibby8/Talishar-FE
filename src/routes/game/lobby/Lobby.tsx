@@ -29,6 +29,8 @@ import StickyFooter, {
 import { toast } from 'react-hot-toast';
 import useAuth from 'hooks/useAuth';
 import useAdScript from 'hooks/useAdScript';
+import useSupporterStatus from 'hooks/useSupporterStatus';
+import { ADS_ENABLED } from 'config/ads';
 import { useCookies } from 'react-cookie';
 import {
   useGetLobbyInfoQuery,
@@ -70,6 +72,7 @@ import { useNavigate } from 'react-router-dom';
 import CardPortal from '../components/elements/cardPortal/CardPortal';
 import ChatCardDetail from '../components/elements/chatCardDetail/ChatCardDetail';
 import Matchups from './components/matchups/Matchups';
+import LobbyAd from './components/lobbyAd/LobbyAd';
 import { GameLocationState } from 'interface/GameLocationState';
 import { saveGameAuthKey } from 'utils/LocalKeyManagement';
 import CardPopUp from '../components/elements/cardPopUp/CardPopUp';
@@ -124,12 +127,14 @@ const Lobby = () => {
   const { t } = useTranslation();
   usePageTitle(t('PAGES.LOBBY'));
   useSuppressTouchImageMenu();
-  useAdScript(false);
   const [activeTab, setActiveTab] = useState<string>('equipment');
   const [unreadChat, setUnreadChat] = useState<boolean>(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const width = useWindowWidth();
   const [isWideScreen, setIsWideScreen] = useState<boolean>(false);
+  const { showAds } = useSupporterStatus();
+  const showLobbyAd = ADS_ENABLED && showAds && isWideScreen;
+  useAdScript(showLobbyAd);
   const [isDeckValid, setIsDeckValid] = useState(true);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -183,7 +188,14 @@ const Lobby = () => {
     gameLobby?.myDeckLink
   );
   const shouldShowMatchupsUI = (gameLobby?.matchups?.length ?? 0) > 0;
-  const [playLobbyJoin] = useSound(playerJoined, { volume: 1 });
+  const [playLobbyJoin, { sound: lobbyJoinSound }] = useSound(playerJoined, {
+    volume: 1
+  });
+  const previousOpponentSeatRef = useRef<{
+    gameID: number;
+    occupied: boolean;
+  }>();
+  const pendingJoinAlertRef = useRef<number>();
   const settingsData = useAppSelector(getSettingsEntity);
   const isMuted = settingsData['MuteSound']?.value === '1';
   const isStreamerMode = String(settingsData['IsStreamerMode']?.value) === '1';
@@ -409,12 +421,38 @@ const Lobby = () => {
   };
 
   useEffect(() => {
-    // Only play sound when opponent first joins (when theirName becomes populated)
-    // Don't play on other updates like messages, invites, etc.
-    if (gameLobby?.theirName && gameLobby.theirName !== '' && !isMuted) {
-      playLobbyJoin();
+    // Older servers only expose the opponent's hero, not seat occupancy.
+    const occupied =
+      gameLobby?.opponentSeatOccupied ??
+      (gameLobby?.theirHero
+        ? gameLobby.theirHero !== 'CardBack'
+        : undefined);
+    if (occupied === undefined) return;
+
+    const previous = previousOpponentSeatRef.current;
+    const wasOccupied = previous?.gameID === gameID && previous.occupied;
+    previousOpponentSeatRef.current = { gameID, occupied };
+
+    if (!occupied || playerID !== 1 || isMuted) {
+      pendingJoinAlertRef.current = undefined;
+      return;
     }
-  }, [gameLobby?.theirName, isMuted]);
+
+    // useSound drops play calls made before the MP3 has loaded.
+    if (!wasOccupied) pendingJoinAlertRef.current = gameID;
+    if (pendingJoinAlertRef.current === gameID && lobbyJoinSound) {
+      playLobbyJoin();
+      pendingJoinAlertRef.current = undefined;
+    }
+  }, [
+    gameLobby?.opponentSeatOccupied,
+    gameLobby?.theirHero,
+    gameID,
+    playerID,
+    isMuted,
+    lobbyJoinSound,
+    playLobbyJoin
+  ]);
 
   useEffect(() => {
     const hasMousePointer = window.matchMedia('(pointer: fine)').matches;
@@ -1310,7 +1348,11 @@ const Lobby = () => {
         <Form className={styles.form}>
           <FormikDebugLogger />
           <PhaseRevalidator phase={lobbyPhase} />
-          <div className={styles.gridLayout}>
+          <div
+            className={classNames(styles.gridLayout, {
+              [styles.gridLayoutWithAd]: showLobbyAd
+            })}
+          >
             <div className={styles.titleContainer}>
               <CardPopUp
                 cardNumber={data.deck.hero}
@@ -1648,6 +1690,7 @@ const Lobby = () => {
                   }
                 />
               )}
+            {showLobbyAd && <LobbyAd />}
             <StickyFooter
               deckSize={deckSize}
               submitSideboard={gameLobby?.canSubmitSideboard ?? false}

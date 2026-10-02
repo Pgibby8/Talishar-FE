@@ -4,6 +4,8 @@ import CardDisplay from '../../cardDisplay/CardDisplay';
 import { NAME_A_CARD } from '../constants';
 import { FormProps } from '../playerInputPopupTypes';
 import { promptShortcutKey, shortcutBlockedByFocus } from '../promptShortcuts';
+import { withinGroupLimits } from '../groupLimits';
+import { Card } from 'features/Card';
 import styles from '../PlayerInputPopUp.module.css';
 import { SplitButton } from './SplitButton';
 
@@ -32,6 +34,7 @@ export const OtherInput = (props: FormProps) => {
   const {
     cards,
     cardOriginalIndexes,
+    cardCounts,
     buttons,
     choiceOptions,
     checkedState,
@@ -83,12 +86,20 @@ export const OtherInput = (props: FormProps) => {
   }
   const minNo = formOptions?.minNo ?? 0;
   const maxNo = formOptions?.maxNo ?? checkedState.length;
-  const hasValidSelection = selectedCount >= minNo && selectedCount <= maxNo;
+  const allCards: Card[] = [];
+  cards?.forEach((card, index) => {
+    allCards[cardOriginalIndexes[index] ?? index] = card;
+  });
+  const hasValidSelection =
+    selectedCount >= minNo &&
+    selectedCount <= maxNo &&
+    withinGroupLimits(allCards, checkedState, formOptions?.groupLimits);
   const selectionSummary =
     minNo === maxNo ? `${selectedCount}/${minNo}` : `${selectedCount} selected`;
 
   const selectCard = cards?.map((card, index) => {
     const originalIndex = cardOriginalIndexes[index] ?? index;
+    const copies = cardCounts[index] ?? 1;
     return choiceOptions == 'checkbox' ? (
       <div
         key={`${card.cardNumber}-${originalIndex}`}
@@ -112,14 +123,43 @@ export const OtherInput = (props: FormProps) => {
         className={styles.cardDiv}
         key={`${card.cardNumber}-${originalIndex}`}
       >
-        <CardDisplay card={card} />
+        <CardDisplay card={card}>
+          {copies > 1 ? (
+            <div className={styles.copyCount}>
+              <span className={styles.copyCountBadge}>×{copies}</span>
+            </div>
+          ) : null}
+        </CardDisplay>
       </div>
     );
   });
 
+  const sections: { name: string; items: JSX.Element[] }[] = [];
+  if (cards?.some((card) => card.section)) {
+    const cardElements = selectCard ?? [];
+    cards.forEach((card, index) => {
+      const name = card.section ?? '';
+      let section = sections.find((entry) => entry.name === name);
+      if (!section) {
+        section = { name, items: [] };
+        sections.push(section);
+      }
+      section.items.push(cardElements[index]);
+    });
+  }
+
   return (
     <form className={styles.form}>
-      {selectCard?.length != 0 ? (
+      {sections.length > 0 ? (
+        <div className={styles.cardSections}>
+          {sections.map((section) => (
+            <div key={section.name} role="group" aria-label={section.name}>
+              <h4 className={styles.cardSectionTitle}>{section.name}</h4>
+              <div className={styles.cardList}>{section.items}</div>
+            </div>
+          ))}
+        </div>
+      ) : selectCard?.length != 0 ? (
         <div className={styles.cardList}>{selectCard}</div>
       ) : null}
       {buttons?.length != 0 ? (
